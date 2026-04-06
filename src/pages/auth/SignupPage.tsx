@@ -34,7 +34,8 @@ export function SignupPage() {
       const uid = await signUp(form.email, form.password, form.name);
       await createUserProfile(uid, form.name, form.email);
       navigate('/onboarding/step-1');
-    } catch {
+    } catch (err) {
+      console.error('[SignupPage] Email sign-up error:', err);
       setErrors({ email: 'Email already in use or invalid.' });
     } finally {
       setLoading(false);
@@ -53,7 +54,8 @@ export function SignupPage() {
         const profile = await getUserProfile(uid);
         navigate(profile?.onboardingComplete ? '/' : '/onboarding/step-1');
       }
-    } catch {
+    } catch (err) {
+      console.error('[SignupPage] Google sign-in error:', err);
       setErrors({ email: 'Google sign-in failed.' });
     } finally {
       setGoogleLoading(false);

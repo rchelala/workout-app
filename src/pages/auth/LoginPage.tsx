@@ -23,7 +23,8 @@ export function LoginPage() {
     try {
       await signIn(form.email, form.password);
       navigate('/');
-    } catch {
+    } catch (err) {
+      console.error('[LoginPage] Email sign-in error:', err);
       setError('Invalid email or password.');
     } finally {
       setLoading(false);
@@ -38,7 +39,8 @@ export function LoginPage() {
       const profile = await getUserProfile(uid);
       if (!profile) navigate('/onboarding/step-1');
       else navigate('/');
-    } catch {
+    } catch (err) {
+      console.error('[LoginPage] Google sign-in error:', err);
       setError('Google sign-in failed.');
     } finally {
       setGoogleLoading(false);

@@ -30,14 +30,20 @@ export function OnboardingEquipment() {
   const handleFinish = async () => {
     if (!user || !selected.length) return;
     setLoading(true);
-    const gender = (sessionStorage.getItem('onboarding_gender') ?? 'male') as Gender;
-    const goal = (sessionStorage.getItem('onboarding_goal') ?? 'stay_active') as FitnessGoal;
-    const level = (sessionStorage.getItem('onboarding_level') ?? 'beginner') as FitnessLevel;
-    await completeOnboarding(user.uid, gender, goal, level, selected.length ? selected : ['none']);
-    sessionStorage.removeItem('onboarding_gender');
-    sessionStorage.removeItem('onboarding_goal');
-    sessionStorage.removeItem('onboarding_level');
-    navigate('/');
+    try {
+      const gender = (sessionStorage.getItem('onboarding_gender') ?? 'male') as Gender;
+      const goal = (sessionStorage.getItem('onboarding_goal') ?? 'stay_active') as FitnessGoal;
+      const level = (sessionStorage.getItem('onboarding_level') ?? 'beginner') as FitnessLevel;
+      await completeOnboarding(user.uid, gender, goal, level, selected.length ? selected : ['none']);
+      sessionStorage.removeItem('onboarding_gender');
+      sessionStorage.removeItem('onboarding_goal');
+      sessionStorage.removeItem('onboarding_level');
+      navigate('/');
+    } catch (err) {
+      console.error('[OnboardingEquipment] completeOnboarding error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

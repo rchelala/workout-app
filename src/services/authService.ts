@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  getAdditionalUserInfo,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
@@ -28,7 +29,9 @@ export async function signIn(email: string, password: string): Promise<string> {
 
 export async function signInWithGoogle(): Promise<{ uid: string; isNew: boolean }> {
   const result = await signInWithPopup(auth, googleProvider);
-  const isNew = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
+  // Use Firebase's official isNewUser flag instead of comparing timestamp strings,
+  // which can produce false negatives if the timestamps happen to differ by milliseconds.
+  const isNew = getAdditionalUserInfo(result)?.isNewUser ?? false;
   return { uid: result.user.uid, isNew };
 }
 

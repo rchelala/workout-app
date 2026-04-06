@@ -1,0 +1,74 @@
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
+import type { MacroLog, MealAnalysisResult } from '@/types/macro';
+import { todayISO } from '@/utils/formatters';
+
+export async function analyzeMealPhoto(
+  imageBase64: string,
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
+): Promise<MealAnalysisResult> {
+  const response = await fetch('/api/analyze-meal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64, mimeType }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to analyze meal');
+  }
+  const data = await response.json() as { result: MealAnalysisResult | string; raw?: boolean };
+  if (data.raw && typeof data.result === 'string') {
+    throw new Error('AI returned unexpected format');
+  }
+  return data.result as MealAnalysisResult;
+}
+
+export async function uploadMealPhoto(
+  userId: string,
+  base64: string,
+  mimeType: string
+): Promise<string> {
+  const filename = `meal_photos/${userId}/${Date.now()}.jpg`;
+  const storageRef = ref(storage, filename);
+  await uploadString(storageRef, base64, 'base64', { contentType: mimeType });
+  return getDownloadURL(storageRef);
+}
+
+export async function addMacroLog(
+  userId: string,
+  log: Omit<MacroLog, 'logId' | 'userId' | 'loggedAt'>
+): Promise<string> {
+  const ref2 = await addDoc(collection(db, 'macroLogs'), {
+    userId,
+    ...log,
+    date: log.date || todayISO(),
+    loggedAt: serverTimestamp(),
+  });
+  return ref2.id;
+}
+
+export async function getDailyMacros(userId: string, date: string): Promise<MacroLog[]> {
+  const q = query(
+    collection(db, 'macroLogs'),
+    where('userId', '==', userId),
+    where('date', '==', date),
+    orderBy('loggedAt', 'asc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      logId: d.id,
+      loggedAt: data.loggedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    } as MacroLog;
+  });
+}

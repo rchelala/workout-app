@@ -5,7 +5,6 @@ import {
   doc,
   query,
   where,
-  orderBy,
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -67,17 +66,18 @@ export async function abandonSession(sessionId: string, durationSecs: number): P
 export async function getHistory(userId: string): Promise<WorkoutSession[]> {
   const q = query(
     collection(db, 'workoutSessions'),
-    where('userId', '==', userId),
-    orderBy('startedAt', 'desc')
+    where('userId', '==', userId)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      ...data,
-      sessionId: d.id,
-      startedAt: data.startedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-      completedAt: data.completedAt?.toDate?.()?.toISOString() ?? null,
-    } as WorkoutSession;
-  });
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        ...data,
+        sessionId: d.id,
+        startedAt: data.startedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+        completedAt: data.completedAt?.toDate?.()?.toISOString() ?? null,
+      } as WorkoutSession;
+    })
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }

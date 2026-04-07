@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
+import { Toast } from '@/components/ui/Toast';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useWorkoutPlans } from '@/hooks/useWorkoutPlans';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +26,7 @@ export function SchedulePage() {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [scheduling, setScheduling] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   const workoutDates = [...new Set(scheduled.map((s) => s.scheduledDate))];
   const dayEvents = scheduled.filter((s) => s.scheduledDate === selectedDate);
@@ -34,12 +36,18 @@ export function SchedulePage() {
     const plan = plans.find((p) => p.planId === selectedPlanId);
     if (!plan) return;
     setScheduling(true);
-    await scheduleWorkout(user.uid, plan.planId, plan.title, selectedDate, scheduleTime || null);
-    refetch();
-    setScheduling(false);
-    setAddOpen(false);
-    setSelectedPlanId('');
-    setScheduleTime('');
+    setScheduleError(null);
+    try {
+      await scheduleWorkout(user.uid, plan.planId, plan.title, selectedDate, scheduleTime || null);
+      refetch();
+      setAddOpen(false);
+      setSelectedPlanId('');
+      setScheduleTime('');
+    } catch {
+      setScheduleError('Failed to save. Check your connection and try again.');
+    } finally {
+      setScheduling(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -95,11 +103,16 @@ export function SchedulePage() {
           </div>
           <Input label="Date" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
           <Input label="Time (optional)" type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} />
+          {scheduleError && <p className="text-xs text-danger">{scheduleError}</p>}
           <Button variant="primary" fullWidth size="lg" loading={scheduling} disabled={!selectedPlanId} onClick={handleAdd}>
             Add to Schedule
           </Button>
         </div>
       </Modal>
+
+      {scheduleError && !addOpen && (
+        <Toast message={scheduleError} type="error" onDismiss={() => setScheduleError(null)} />
+      )}
     </AppShell>
   );
 }

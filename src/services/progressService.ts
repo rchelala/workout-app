@@ -3,7 +3,6 @@ import {
   addDoc,
   query,
   where,
-  orderBy,
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -27,16 +26,17 @@ export async function addBodyMetric(
 export async function getBodyMetrics(userId: string): Promise<BodyMetric[]> {
   const q = query(
     collection(db, 'bodyMetrics'),
-    where('userId', '==', userId),
-    orderBy('date', 'asc')
+    where('userId', '==', userId)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      ...data,
-      metricId: d.id,
-      loggedAt: data.loggedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    } as BodyMetric;
-  });
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        ...data,
+        metricId: d.id,
+        loggedAt: data.loggedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      } as BodyMetric;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
 }

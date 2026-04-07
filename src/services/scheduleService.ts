@@ -6,7 +6,6 @@ import {
   doc,
   query,
   where,
-  orderBy,
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -36,18 +35,19 @@ export async function scheduleWorkout(
 export async function getScheduledWorkouts(userId: string): Promise<ScheduledWorkout[]> {
   const q = query(
     collection(db, 'scheduledWorkouts'),
-    where('userId', '==', userId),
-    orderBy('scheduledDate', 'asc')
+    where('userId', '==', userId)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      ...data,
-      scheduleId: d.id,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    } as ScheduledWorkout;
-  });
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        ...data,
+        scheduleId: d.id,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      } as ScheduledWorkout;
+    })
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
 }
 
 export async function markScheduledComplete(

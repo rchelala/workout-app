@@ -40,8 +40,8 @@ export function MacrosPage() {
     }
   };
 
-  const handleSaveAI = async () => {
-    if (!user || !pendingResult) return;
+  const handleSaveAI = async (edited: MealAnalysisResult) => {
+    if (!user) return;
     setSaving(true);
     let imageUrl: string | null = null;
     try {
@@ -56,11 +56,11 @@ export function MacrosPage() {
         date: todayISO(),
         source: 'ai_photo',
         imageUrl,
-        mealDescription: pendingResult.meal_description,
-        calories: pendingResult.calories,
-        proteinG: pendingResult.protein_g,
-        carbsG: pendingResult.carbs_g,
-        fatG: pendingResult.fat_g,
+        mealDescription: edited.meal_description,
+        calories: edited.calories,
+        proteinG: edited.protein_g,
+        carbsG: edited.carbs_g,
+        fatG: edited.fat_g,
         aiRawResponse: null,
       });
       setPendingResult(null);

@@ -18,6 +18,7 @@ import { HomePage } from '@/pages/HomePage';
 import { PlansPage } from '@/pages/PlansPage';
 import { WorkoutDetailPage } from '@/pages/WorkoutDetailPage';
 import { ActiveWorkoutPage } from '@/pages/ActiveWorkoutPage';
+import { QuickLogPage } from '@/pages/QuickLogPage';
 import { SchedulePage } from '@/pages/SchedulePage';
 import { ProgressPage } from '@/pages/ProgressPage';
 import { MacrosPage } from '@/pages/MacrosPage';
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/plans" element={<ProtectedRoute><PlansPage /></ProtectedRoute>} />
           <Route path="/plans/:planId" element={<ProtectedRoute><WorkoutDetailPage /></ProtectedRoute>} />
           <Route path="/workout/active/:planId" element={<ProtectedRoute><ActiveWorkoutPage /></ProtectedRoute>} />
+          <Route path="/workout/quick-log" element={<ProtectedRoute><QuickLogPage /></ProtectedRoute>} />
           <Route path="/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
           <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
           <Route path="/macros" element={<ProtectedRoute><MacrosPage /></ProtectedRoute>} />

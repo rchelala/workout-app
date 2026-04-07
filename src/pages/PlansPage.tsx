@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { WorkoutCard } from '@/components/workout/WorkoutCard';
 import { FilterBar } from '@/components/workout/FilterBar';
@@ -11,6 +12,23 @@ export function PlansPage() {
 
   return (
     <AppShell title="Workout Plans">
+      {/* Quick log entry */}
+      <button
+        onClick={() => navigate('/workout/quick-log')}
+        className="w-full flex items-center justify-between bg-surface rounded-2xl px-4 py-3 mb-4 hover:bg-surfaceHigh transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-accentGreen/20 flex items-center justify-center">
+            <Plus size={18} className="text-accentGreen" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-textPrimary">Log Custom Workout</p>
+            <p className="text-xs text-textMuted">Free-form — add your own exercises</p>
+          </div>
+        </div>
+        <span className="text-textMuted text-lg">›</span>
+      </button>
+
       <FilterBar filters={filters} onChange={setFilters} />
       {loading ? (
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>

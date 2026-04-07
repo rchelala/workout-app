@@ -7,6 +7,7 @@ import { WorkoutCompleteModal } from '@/components/workout/WorkoutCompleteModal'
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ProgressRing } from '@/components/ui/ProgressRing';
+import { Toast } from '@/components/ui/Toast';
 import { useWorkoutTimer } from '@/hooks/useWorkoutTimer';
 import { useRestTimer } from '@/hooks/useRestTimer';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
@@ -16,6 +17,8 @@ import { startSession, completeSession, rateSession } from '@/services/sessionSe
 import { updateStreak } from '@/services/streakService';
 import type { Exercise, WorkoutPlan } from '@/types/workout';
 import { formatSeconds } from '@/utils/formatters';
+
+type WorkoutPhase = 'ready' | 'set-active' | 'rest-ready' | 'resting';
 
 export function ActiveWorkoutPage() {
   const { planId } = useParams<{ planId: string }>();
@@ -27,12 +30,13 @@ export function ActiveWorkoutPage() {
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showComplete, setShowComplete] = useState(false);
-  const [restDuration, setRestDuration] = useState(60);
-  const [awaitingRest, setAwaitingRest] = useState(false);
+  const [phase, setPhase] = useState<WorkoutPhase>('ready');
+  const [currentRestSecs, setCurrentRestSecs] = useState(60);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const timer = useWorkoutTimer();
   const workout = useActiveWorkout(exercises);
-  const restTimer = useRestTimer(() => setAwaitingRest(false));
+  const restTimer = useRestTimer(() => setPhase('ready'));
 
   useEffect(() => {
     if (!planId) return;
@@ -56,23 +60,41 @@ export function ActiveWorkoutPage() {
     }
   }, [workout.isComplete]);
 
+  const handleStartSet = () => {
+    setPhase('set-active');
+  };
+
   const handleSetDone = (weightKg: number | null, reps: number | null) => {
-    const result = workout.logSet(weightKg, reps);
+    // Snapshot rest duration BEFORE logSet advances the exercise index
     const ex = exercises[workout.currentExerciseIndex];
-    if (result !== null && ex) {
-      setRestDuration(ex.restSecs);
-      setAwaitingRest(true);
-      restTimer.startRest(ex.restSecs);
+    const restSecs = ex?.restSecs ?? 60;
+
+    const result = workout.logSet(weightKg, reps);
+
+    if (result !== null) {
+      setCurrentRestSecs(restSecs);
+      setPhase('rest-ready');
     }
+    // If result is null the workout is complete — useEffect above handles that
+  };
+
+  const handleStartRest = () => {
+    setPhase('resting');
+    restTimer.startRest(currentRestSecs);
   };
 
   const handleSave = async (rating: 1 | 2 | 3 | 4 | 5) => {
-    if (sessionId) {
-      await completeSession(sessionId, timer.elapsedSecs, workout.totalSetsCompleted, workout.exerciseLogs);
-      await rateSession(sessionId, rating);
+    setSaveError(null);
+    try {
+      if (sessionId) {
+        await completeSession(sessionId, timer.elapsedSecs, workout.totalSetsCompleted, workout.exerciseLogs);
+        await rateSession(sessionId, rating);
+      }
+      if (userProfile) await updateStreak(userProfile);
+      navigate('/');
+    } catch {
+      setSaveError('Failed to save workout. Check your connection and try again.');
     }
-    if (userProfile) await updateStreak(userProfile);
-    navigate('/');
   };
 
   if (loading) {
@@ -132,11 +154,37 @@ export function ActiveWorkoutPage() {
             )}
           </div>
 
-          <SetLogger
-            exercise={currentExercise}
-            setNumber={workout.currentSetIndex + 1}
-            onComplete={handleSetDone}
-          />
+          {/* Set logger — key forces remount between sets, resetting inputs */}
+          {(phase === 'ready' || phase === 'set-active') && (
+            <SetLogger
+              key={`${workout.currentExerciseIndex}-${workout.currentSetIndex}`}
+              exercise={currentExercise}
+              setNumber={workout.currentSetIndex + 1}
+              phase={phase}
+              onStartSet={handleStartSet}
+              onComplete={handleSetDone}
+            />
+          )}
+
+          {/* Rest ready state — prompt to start rest */}
+          {phase === 'rest-ready' && (
+            <div className="bg-surface rounded-2xl p-6 flex flex-col items-center gap-4">
+              <p className="text-lg font-semibold text-textPrimary">Set Complete!</p>
+              <p className="text-sm text-textMuted">Rest for {currentRestSecs}s when ready</p>
+              <button
+                onClick={handleStartRest}
+                className="w-full h-14 rounded-2xl bg-accentGreen text-background font-semibold text-base"
+              >
+                Start Rest ({currentRestSecs}s)
+              </button>
+              <button
+                onClick={() => setPhase('ready')}
+                className="text-sm text-textMuted underline-offset-2 hover:underline"
+              >
+                Skip rest
+              </button>
+            </div>
+          )}
 
           {/* Upcoming */}
           {exercises[workout.currentExerciseIndex + 1] && (
@@ -155,13 +203,18 @@ export function ActiveWorkoutPage() {
         </div>
       )}
 
-      {/* Rest overlay */}
-      {awaitingRest && restTimer.isActive && (
+      {/* Rest timer overlay */}
+      {phase === 'resting' && restTimer.isActive && (
         <RestTimerOverlay
           remaining={restTimer.remaining}
-          totalSecs={restDuration}
-          onSkip={() => { restTimer.skipRest(); setAwaitingRest(false); }}
+          totalSecs={currentRestSecs}
+          onSkip={() => { restTimer.skipRest(); }}
         />
+      )}
+
+      {/* Save error toast */}
+      {saveError && (
+        <Toast message={saveError} type="error" onDismiss={() => setSaveError(null)} />
       )}
 
       {/* Complete modal */}

@@ -15,24 +15,32 @@ export function useRestTimer(onComplete: () => void): RestTimer {
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    if (isActive && remaining > 0) {
-      intervalRef.current = setInterval(() => {
-        setRemaining((r) => {
-          if (r <= 1) {
-            setIsActive(false);
-            onCompleteRef.current();
-            return 0;
-          }
-          return r - 1;
-        });
-      }, 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+    if (!isActive) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
     }
+
+    intervalRef.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          setIsActive(false);
+          onCompleteRef.current();
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
-  }, [isActive, remaining]);
+  }, [isActive]);
 
   const startRest = useCallback((durationSecs: number) => {
     setRemaining(durationSecs);

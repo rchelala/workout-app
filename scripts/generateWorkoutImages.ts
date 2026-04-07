@@ -1,14 +1,14 @@
 /**
- * One-time script: generates AI workout thumbnail images via kie.ai,
+ * One-time script: generates AI workout thumbnail images via kie.ai (4o Image API),
  * uploads them to Firebase Storage, and updates each plan's thumbnailUrl in Firestore.
  *
  * Usage:
  *   npx ts-node --project tsconfig.json scripts/generateWorkoutImages.ts
  *
- * Required env vars in .env.local:
- *   KIE_AI_API_KEY          — from kie.ai dashboard
- *   VITE_FIREBASE_PROJECT_ID — Firebase project ID
- *   VITE_FIREBASE_STORAGE_BUCKET — Firebase Storage bucket (e.g. your-app.appspot.com)
+ * Required env vars in .env or .env.local:
+ *   KIE_AI_API_KEY               — from https://kie.ai/api-key
+ *   VITE_FIREBASE_PROJECT_ID     — Firebase project ID
+ *   VITE_FIREBASE_STORAGE_BUCKET — e.g. your-app.appspot.com
  *   GOOGLE_APPLICATION_CREDENTIALS — path to Firebase service account JSON
  */
 
@@ -40,18 +40,84 @@ admin.initializeApp({
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
+const KIE_BASE = 'https://api.kie.ai/api/v1/gpt4o-image';
+
 function buildPrompt(workoutType: string, genderFocus: string, title: string): string {
   const genderPart =
-    genderFocus === 'male' ? 'male athlete, masculine physique, ' :
-    genderFocus === 'female' ? 'female athlete, feminine physique, ' : '';
+    genderFocus === 'male' ? 'male athlete, ' :
+    genderFocus === 'female' ? 'female athlete, ' : '';
 
   const typePart =
     workoutType === 'strength' ? 'heavy lifting, barbell and dumbbells, gym setting, powerful movement' :
-    workoutType === 'hiit' ? 'high intensity interval training, explosive movement, sweat, energy, dynamic pose' :
-    workoutType === 'cardio' ? 'cardio workout, running, treadmill, endurance training, motion blur' :
-    'yoga and stretching, flexibility, mobility, calm studio, serene';
+    workoutType === 'hiit' ? 'high intensity interval training, explosive movement, energy, dynamic pose' :
+    workoutType === 'cardio' ? 'cardio workout, running, treadmill, endurance training' :
+    'yoga and stretching, flexibility, mobility, calm studio';
 
-  return `Professional fitness photography, ${genderPart}${typePart}, dark moody gym background, dramatic lighting, motivational, photorealistic, high quality, 16:9 aspect ratio. Title context: ${title}`;
+  return `Professional fitness photography, ${genderPart}${typePart}, dark moody gym background, dramatic lighting, motivational, photorealistic, high quality. ${title}`;
+}
+
+interface GenerateResponse {
+  code: number;
+  msg: string;
+  data?: { taskId: string };
+}
+
+interface StatusResponse {
+  code: number;
+  successFlag: number; // 0 = in progress, 1 = done, 2 = failed
+  msg?: string;
+  data?: { urls: string[] };
+  progress?: number;
+}
+
+async function submitGeneration(prompt: string): Promise<string> {
+  const res = await fetch(`${KIE_BASE}/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${kieApiKey}`,
+    },
+    body: JSON.stringify({ prompt, size: '3:2', nVariants: 1, isEnhance: false }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`kie.ai generate error ${res.status}: ${await res.text()}`);
+  }
+
+  const json = await res.json() as GenerateResponse;
+  if (!json.data?.taskId) {
+    throw new Error(`kie.ai did not return a taskId: ${JSON.stringify(json)}`);
+  }
+  return json.data.taskId;
+}
+
+async function pollForResult(taskId: string, timeoutMs = 120_000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 5000));
+
+    const res = await fetch(`${KIE_BASE}/record-info?taskId=${taskId}`, {
+      headers: { 'Authorization': `Bearer ${kieApiKey}` },
+    });
+
+    if (!res.ok) {
+      throw new Error(`kie.ai poll error ${res.status}: ${await res.text()}`);
+    }
+
+    const status = await res.json() as StatusResponse;
+
+    if (status.successFlag === 1 && status.data?.urls?.[0]) {
+      return status.data.urls[0];
+    }
+    if (status.successFlag === 2) {
+      throw new Error(`kie.ai generation failed: ${status.msg ?? 'unknown error'}`);
+    }
+
+    process.stdout.write(`  Progress: ${status.progress ?? '?'}%\r`);
+  }
+
+  throw new Error(`kie.ai generation timed out after ${timeoutMs / 1000}s`);
 }
 
 async function fetchBuffer(url: string): Promise<Buffer> {
@@ -66,46 +132,13 @@ async function fetchBuffer(url: string): Promise<Buffer> {
   });
 }
 
-async function generateImage(prompt: string): Promise<Buffer> {
-  const response = await fetch('https://api.kie.ai/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${kieApiKey}`,
-    },
-    body: JSON.stringify({
-      prompt,
-      n: 1,
-      size: '1024x576',
-      response_format: 'url',
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`kie.ai API error ${response.status}: ${text}`);
-  }
-
-  const json = await response.json() as { data: Array<{ url?: string; b64_json?: string }> };
-  const item = json.data[0];
-
-  if (item.b64_json) {
-    return Buffer.from(item.b64_json, 'base64');
-  }
-  if (item.url) {
-    return fetchBuffer(item.url);
-  }
-  throw new Error('kie.ai response contained neither url nor b64_json');
-}
-
 async function uploadToStorage(planId: string, imageBuffer: Buffer): Promise<string> {
   const file = bucket.file(`workout-thumbnails/${planId}.jpg`);
   await file.save(imageBuffer, {
     metadata: { contentType: 'image/jpeg' },
     public: true,
   });
-  const publicUrl = `https://storage.googleapis.com/${storageBucket}/workout-thumbnails/${planId}.jpg`;
-  return publicUrl;
+  return `https://storage.googleapis.com/${storageBucket}/workout-thumbnails/${planId}.jpg`;
 }
 
 async function main() {
@@ -122,28 +155,30 @@ async function main() {
   for (const planDoc of plansSnap.docs) {
     const plan = planDoc.data();
     const planId = planDoc.id;
-    const prompt = buildPrompt(plan.workoutType, plan.genderFocus, plan.title);
+    const prompt = buildPrompt(plan.workoutType as string, plan.genderFocus as string, plan.title as string);
 
-    console.log(`[${plan.title}]`);
-    console.log(`  Prompt: ${prompt.slice(0, 80)}...`);
+    console.log(`[${plan.title as string}]`);
+    console.log(`  Submitting...`);
 
     try {
-      const imageBuffer = await generateImage(prompt);
-      console.log(`  Generated ${imageBuffer.length} bytes — uploading...`);
+      const taskId = await submitGeneration(prompt);
+      console.log(`  Task ID: ${taskId} — polling for result...`);
 
-      const thumbnailUrl = await uploadToStorage(planId, imageBuffer);
+      const imageUrl = await pollForResult(taskId);
+      console.log(`\n  Image URL: ${imageUrl}`);
+
+      const buffer = await fetchBuffer(imageUrl);
+      console.log(`  Downloaded ${buffer.length} bytes — uploading to Storage...`);
+
+      const thumbnailUrl = await uploadToStorage(planId, buffer);
       await db.collection('workoutPlans').doc(planId).update({ thumbnailUrl });
-
-      console.log(`  Done: ${thumbnailUrl}\n`);
+      console.log(`  Saved: ${thumbnailUrl}\n`);
     } catch (err) {
-      console.error(`  FAILED: ${(err as Error).message}\n`);
+      console.error(`\n  FAILED: ${(err as Error).message}\n`);
     }
-
-    // Respect rate limits — wait 2s between requests
-    await new Promise((r) => setTimeout(r, 2000));
   }
 
-  console.log('Image generation complete.');
+  console.log('Done.');
 }
 
 main().catch((err) => {

@@ -25,7 +25,7 @@ export function BarChart({ data }: BarChartProps) {
             )}
             <div className="w-full flex items-end" style={{ height: '120px' }}>
               <div
-                className={`w-full rounded-t-lg transition-all duration-500 ${item.active ? 'bg-accent' : 'bg-surfaceHigh'}`}
+                className={`w-full rounded-t-lg transition-all duration-500 ${item.active ? 'bg-gradient-to-t from-accent/80 to-accent shadow-[0_-4px_12px_rgba(255,107,53,0.4)]' : 'bg-surfaceHigh'}`}
                 style={{ height: `${height}%` }}
               />
             </div>

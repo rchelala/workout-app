@@ -9,10 +9,10 @@ interface WaterTrackerProps {
 
 export function WaterTracker({ glasses, goal, onIncrement, onDecrement }: WaterTrackerProps) {
   return (
-    <div className="bg-surface rounded-2xl p-4">
+    <div className="bg-gradient-to-b from-[#2E2E2E] to-[#252525] rounded-2xl p-4 border border-white/[0.06] shadow-card">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Droplets size={18} className="text-blue-400" />
+          <Droplets size={18} className="text-[#42A5F5]" />
           <span className="text-sm font-semibold text-textPrimary">Water Intake</span>
         </div>
         <span className="text-sm text-textMuted">{glasses} / {goal} glasses</span>
@@ -21,7 +21,7 @@ export function WaterTracker({ glasses, goal, onIncrement, onDecrement }: WaterT
         {Array.from({ length: goal }, (_, i) => (
           <div
             key={i}
-            className={`flex-1 h-3 rounded-full transition-colors ${i < glasses ? 'bg-blue-400' : 'bg-surfaceHigh'}`}
+            className={`flex-1 h-3 rounded-full transition-colors ${i < glasses ? 'bg-[#42A5F5]' : 'bg-surfaceHigh'}`}
           />
         ))}
       </div>
@@ -37,7 +37,7 @@ export function WaterTracker({ glasses, goal, onIncrement, onDecrement }: WaterT
         <button
           onClick={onIncrement}
           disabled={glasses >= goal}
-          className="w-10 h-10 rounded-full bg-blue-400/20 flex items-center justify-center text-blue-400 hover:bg-blue-400/30 disabled:opacity-40 transition-colors"
+          className="w-10 h-10 rounded-full bg-[#42A5F5]/20 flex items-center justify-center text-[#42A5F5] hover:bg-[#42A5F5]/30 disabled:opacity-40 transition-colors"
         >
           <Plus size={18} />
         </button>

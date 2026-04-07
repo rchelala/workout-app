@@ -12,7 +12,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary:   'bg-accentGreen text-background font-semibold hover:opacity-90 active:scale-95',
+  primary:   'bg-gradient-to-br from-accentGreen to-[#00C853] text-background font-display font-semibold tracking-wide shadow-glow-green hover:brightness-105 active:scale-95 active:brightness-90',
   secondary: 'bg-surfaceHigh text-textPrimary font-semibold hover:bg-border active:scale-95',
   ghost:     'bg-transparent text-textMuted border border-border hover:border-textMuted active:scale-95',
   danger:    'bg-danger text-white font-semibold hover:opacity-90 active:scale-95',

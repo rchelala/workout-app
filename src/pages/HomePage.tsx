@@ -50,7 +50,10 @@ export function HomePage() {
       {todayWorkouts.length > 0 && (
         <section className="mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-textPrimary">Today's Workout</h2>
+            <div>
+              <p className="text-xs font-display font-semibold tracking-widest uppercase text-textMuted mb-0.5">Today</p>
+              <h2 className="text-lg font-display font-semibold text-textPrimary">Your Workout</h2>
+            </div>
             <button onClick={() => navigate('/schedule')} className="text-xs text-accent flex items-center gap-1">
               <Calendar size={14} /> Schedule
             </button>
@@ -58,11 +61,15 @@ export function HomePage() {
           {todayWorkouts.slice(0, 1).map((s) => (
             <div
               key={s.scheduleId}
-              onClick={() => navigate(`/plans/${s.planId}`)}
-              className="bg-accent/10 border border-accent/30 rounded-2xl p-4 cursor-pointer"
+              className="p-[1px] bg-gradient-to-br from-accent/50 to-accent/10 rounded-2xl"
             >
-              <p className="font-semibold text-textPrimary">{s.planTitle}</p>
-              <p className="text-xs text-textMuted mt-0.5">Tap to start your workout</p>
+              <div
+                onClick={() => navigate(`/plans/${s.planId}`)}
+                className="bg-accent/10 rounded-[15px] p-4 cursor-pointer"
+              >
+                <p className="font-semibold text-textPrimary">{s.planTitle}</p>
+                <p className="text-xs text-textMuted mt-0.5">Tap to start your workout</p>
+              </div>
             </div>
           ))}
         </section>
@@ -72,11 +79,11 @@ export function HomePage() {
       <section className="mb-6">
         <button
           onClick={() => navigate('/schedule')}
-          className="w-full bg-surface rounded-2xl p-4 text-left"
+          className="w-full bg-gradient-to-b from-[#2E2E2E] to-[#252525] rounded-2xl p-4 text-left border border-white/[0.06] shadow-card"
         >
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-base font-semibold text-textPrimary">This Week</h2>
+              <h2 className="text-base font-display font-semibold text-textPrimary">This Week</h2>
               <p className="text-xs text-textMuted mt-0.5">
                 {completedThisWeek} of {weeklyGoal} workout{weeklyGoal !== 1 ? 's' : ''} completed
               </p>
@@ -106,16 +113,18 @@ export function HomePage() {
       {!chartsLoading && (
         <>
           <section className="mb-6">
-            <h2 className="text-lg font-semibold text-textPrimary mb-3">Weekly Activity</h2>
-            <div className="bg-surface rounded-2xl p-4">
+            <p className="text-xs font-display font-semibold tracking-widest uppercase text-textMuted mb-1">Activity</p>
+            <h2 className="text-lg font-display font-semibold text-textPrimary mb-3">Weekly Workouts</h2>
+            <div className="bg-gradient-to-b from-[#2E2E2E] to-[#252525] rounded-2xl p-4 border border-white/[0.06] shadow-card">
               <BarChart data={weeklyBarData} />
             </div>
           </section>
 
           {effortLineData.length >= 2 && (
             <section className="mb-6">
-              <h2 className="text-lg font-semibold text-textPrimary mb-3">Effort Trend</h2>
-              <div className="bg-surface rounded-2xl p-4">
+              <p className="text-xs font-display font-semibold tracking-widest uppercase text-textMuted mb-1">Progress</p>
+              <h2 className="text-lg font-display font-semibold text-textPrimary mb-3">Effort Trend</h2>
+              <div className="bg-gradient-to-b from-[#2E2E2E] to-[#252525] rounded-2xl p-4 border border-white/[0.06] shadow-card">
                 <LineChart data={effortLineData} color="#FF6B35" />
                 <p className="text-xs text-textMuted mt-2 text-center">Effort rating (1–5) across last {effortLineData.length} workouts</p>
               </div>
@@ -134,7 +143,10 @@ export function HomePage() {
       {/* Popular Plans */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-textPrimary">Popular Plans</h2>
+          <div>
+            <p className="text-xs font-display font-semibold tracking-widest uppercase text-textMuted mb-0.5">Explore</p>
+            <h2 className="text-lg font-display font-semibold text-textPrimary">Popular Plans</h2>
+          </div>
           <button onClick={() => navigate('/plans')} className="text-xs text-accent">See All</button>
         </div>
         {plansLoading ? (

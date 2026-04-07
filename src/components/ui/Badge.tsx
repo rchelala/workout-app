@@ -10,7 +10,7 @@ const colorClasses: Record<BadgeColor, string> = {
   orange: 'bg-accent/20 text-accent',
   green:  'bg-accentGreen/20 text-accentGreen',
   muted:  'bg-surfaceHigh text-textMuted',
-  blue:   'bg-blue-500/20 text-blue-400',
+  blue:   'bg-[rgba(99,179,237,0.15)] text-[#63B3ED]',
 };
 
 const sizeClasses = {

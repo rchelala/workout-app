@@ -11,7 +11,7 @@ interface TopBarProps {
 export function TopBar({ title, rightAction, showBack = false }: TopBarProps) {
   const navigate = useNavigate();
   return (
-    <header className="flex items-center px-4 h-14 bg-background sticky top-0 z-30">
+    <header className="flex items-center px-4 h-14 bg-background/80 backdrop-blur-xl border-b border-white/[0.06] sticky top-0 z-30">
       {showBack && (
         <button
           onClick={() => navigate(-1)}
@@ -20,7 +20,7 @@ export function TopBar({ title, rightAction, showBack = false }: TopBarProps) {
           <ChevronLeft size={22} />
         </button>
       )}
-      <h1 className="text-lg font-semibold text-textPrimary flex-1">{title}</h1>
+      <h1 className="text-lg font-display font-semibold tracking-wide text-textPrimary flex-1">{title}</h1>
       {rightAction && <div>{rightAction}</div>}
     </header>
   );

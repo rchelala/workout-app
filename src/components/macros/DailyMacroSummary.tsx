@@ -17,7 +17,7 @@ export function DailyMacroSummary({ totals, targets }: DailyMacroSummaryProps) {
   ];
 
   return (
-    <div className="bg-surface rounded-2xl p-4">
+    <div className="bg-gradient-to-b from-[#2E2E2E] to-[#252525] rounded-2xl p-4 border border-white/[0.06] shadow-card">
       <h3 className="text-sm font-semibold text-textPrimary mb-3">Today's Macros</h3>
       <div className="flex items-center gap-6">
         <DonutChart
@@ -31,7 +31,7 @@ export function DailyMacroSummary({ totals, targets }: DailyMacroSummaryProps) {
           {[
             { label: 'Protein', current: totals.proteinG, target: targets.dailyProteinTarget, color: 'bg-accent' },
             { label: 'Carbs',   current: totals.carbsG,   target: targets.dailyCarbsTarget,   color: 'bg-accentGreen' },
-            { label: 'Fat',     current: totals.fatG,     target: targets.dailyFatTarget,     color: 'bg-yellow-400' },
+            { label: 'Fat',     current: totals.fatG,     target: targets.dailyFatTarget,     color: 'bg-[#FFD600]' },
           ].map(({ label, current, target, color }) => {
             const pct = Math.min((current / (target || 1)) * 100, 100);
             return (

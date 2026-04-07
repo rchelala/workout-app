@@ -4,7 +4,7 @@ import { Dumbbell } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { signIn, signInWithGoogle } from '@/services/authService';
-import { getUserProfile } from '@/services/userService';
+import { getUserProfile, createUserProfile } from '@/services/userService';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -36,9 +36,13 @@ export function LoginPage() {
     setError('');
     try {
       const { uid } = await signInWithGoogle();
-      const profile = await getUserProfile(uid);
-      if (!profile) navigate('/onboarding/step-1');
-      else navigate('/');
+      let profile = await getUserProfile(uid);
+      if (!profile) {
+        const firebaseUser = (await import('@/lib/firebase')).auth.currentUser;
+        await createUserProfile(uid, firebaseUser?.displayName ?? 'User', firebaseUser?.email ?? '');
+        profile = await getUserProfile(uid);
+      }
+      navigate(profile?.onboardingComplete ? '/' : '/onboarding/step-1');
     } catch (err) {
       console.error('[LoginPage] Google sign-in error:', err);
       setError('Google sign-in failed.');

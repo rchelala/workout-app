@@ -22,7 +22,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth/login" replace />;
   }
 
-  if (userProfile && !userProfile.onboardingComplete) {
+  if (!userProfile || !userProfile.onboardingComplete) {
     return <Navigate to="/onboarding/step-1" replace />;
   }
 

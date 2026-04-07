@@ -21,8 +21,12 @@ export function useAuth(): AuthState {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const profile = await getUserProfile(user.uid);
-        setState({ user, userProfile: profile, loading: false });
+        try {
+          const profile = await getUserProfile(user.uid);
+          setState({ user, userProfile: profile, loading: false });
+        } catch {
+          setState({ user, userProfile: null, loading: false });
+        }
       } else {
         setState({ user: null, userProfile: null, loading: false });
       }

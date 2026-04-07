@@ -43,7 +43,11 @@ export function MacrosPage() {
     setSaving(true);
     let imageUrl: string | null = null;
     try {
-      imageUrl = await uploadMealPhoto(user.uid, pendingBase64, pendingMime);
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+      imageUrl = await Promise.race([
+        uploadMealPhoto(user.uid, pendingBase64, pendingMime),
+        timeout,
+      ]);
     } catch { /* storage optional */ }
     try {
       await addMacroLog(user.uid, {

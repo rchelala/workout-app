@@ -3,7 +3,6 @@ import {
   addDoc,
   query,
   where,
-  orderBy,
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -59,16 +58,17 @@ export async function getDailyMacros(userId: string, date: string): Promise<Macr
   const q = query(
     collection(db, 'macroLogs'),
     where('userId', '==', userId),
-    where('date', '==', date),
-    orderBy('loggedAt', 'asc')
+    where('date', '==', date)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      ...data,
-      logId: d.id,
-      loggedAt: data.loggedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    } as MacroLog;
-  });
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        ...data,
+        logId: d.id,
+        loggedAt: data.loggedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      } as MacroLog;
+    })
+    .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
 }

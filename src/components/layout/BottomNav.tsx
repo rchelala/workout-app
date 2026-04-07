@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Dumbbell, TrendingUp, User } from 'lucide-react';
+import { Home, Dumbbell, TrendingUp, Utensils, User } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/',         icon: Home,       label: 'Home'     },
   { to: '/plans',    icon: Dumbbell,   label: 'Plans'    },
   { to: '/progress', icon: TrendingUp, label: 'Progress' },
+  { to: '/macros',   icon: Utensils,   label: 'Macros'   },
   { to: '/profile',  icon: User,       label: 'Profile'  },
 ];
 

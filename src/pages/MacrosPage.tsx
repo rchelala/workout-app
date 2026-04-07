@@ -13,7 +13,7 @@ import { todayISO } from '@/utils/formatters';
 
 export function MacrosPage() {
   const { user, userProfile } = useAuth();
-  const { totals, loading, refetch } = useMacros(user?.uid ?? null);
+  const { totals, logs, loading, refetch } = useMacros(user?.uid ?? null);
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
@@ -85,6 +85,46 @@ export function MacrosPage() {
           {loading ? <div className="flex justify-center py-4"><Spinner /></div> : (
             <DailyMacroSummary totals={totals} targets={userProfile} />
           )}
+        </section>
+      )}
+
+      {/* Today's Meals */}
+      {logs.length > 0 && (
+        <section className="mb-6">
+          <h2 className="text-base font-semibold text-textPrimary mb-3">Today's Meals</h2>
+          <div className="flex flex-col gap-3">
+            {logs.map((log) => (
+              <div key={log.logId} className="bg-surface rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-textPrimary flex-1 mr-2">{log.mealDescription}</p>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${log.source === 'ai_photo' ? 'bg-accent/20 text-accent' : 'bg-surfaceHigh text-textMuted'}`}>
+                    {log.source === 'ai_photo' ? 'AI' : 'Manual'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div>
+                    <p className="text-sm font-bold text-textPrimary">{log.calories}</p>
+                    <p className="text-xs text-textMuted">kcal</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-textPrimary">{log.proteinG}g</p>
+                    <p className="text-xs text-textMuted">Protein</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-textPrimary">{log.carbsG}g</p>
+                    <p className="text-xs text-textMuted">Carbs</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-textPrimary">{log.fatG}g</p>
+                    <p className="text-xs text-textMuted">Fat</p>
+                  </div>
+                </div>
+                <p className="text-xs text-textMuted mt-2">
+                  {new Date(log.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 

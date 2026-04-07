@@ -1,14 +1,12 @@
 /**
- * One-time script: generates AI workout thumbnail images via kie.ai (4o Image API),
- * uploads them to Firebase Storage, and updates each plan's thumbnailUrl in Firestore.
+ * One-time script: assigns curated Unsplash thumbnail URLs to each workout plan in Firestore.
+ * No API key or credits required — URLs point directly to Unsplash CDN.
  *
  * Usage:
  *   npx ts-node --project tsconfig.json scripts/generateWorkoutImages.ts
  *
  * Required env vars in .env or .env.local:
- *   KIE_AI_API_KEY               — from https://kie.ai/api-key
- *   VITE_FIREBASE_PROJECT_ID     — Firebase project ID
- *   VITE_FIREBASE_STORAGE_BUCKET — e.g. your-app.appspot.com
+ *   VITE_FIREBASE_PROJECT_ID       — Firebase project ID
  *   GOOGLE_APPLICATION_CREDENTIALS — path to Firebase service account JSON
  */
 
@@ -17,129 +15,51 @@ const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const admin = require('firebase-admin') as typeof import('firebase-admin');
 import * as dotenv from 'dotenv';
-import https from 'https';
-import http from 'http';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env' });
 
 const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET;
-const kieApiKey = process.env.KIE_AI_API_KEY;
-
 if (!projectId) { console.error('VITE_FIREBASE_PROJECT_ID is not set'); process.exit(1); }
-if (!storageBucket) { console.error('VITE_FIREBASE_STORAGE_BUCKET is not set'); process.exit(1); }
-if (!kieApiKey) { console.error('KIE_AI_API_KEY is not set'); process.exit(1); }
 
-admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
-  projectId,
-  storageBucket,
-});
-
+admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId });
 const db = admin.firestore();
-const bucket = admin.storage().bucket();
 
-const KIE_BASE = 'https://api.kie.ai/api/v1/gpt4o-image';
-
-function buildPrompt(workoutType: string, genderFocus: string, title: string): string {
-  const genderPart =
-    genderFocus === 'male' ? 'male athlete, ' :
-    genderFocus === 'female' ? 'female athlete, ' : '';
-
-  const typePart =
-    workoutType === 'strength' ? 'heavy lifting, barbell and dumbbells, gym setting, powerful movement' :
-    workoutType === 'hiit' ? 'high intensity interval training, explosive movement, energy, dynamic pose' :
-    workoutType === 'cardio' ? 'cardio workout, running, treadmill, endurance training' :
-    'yoga and stretching, flexibility, mobility, calm studio';
-
-  return `Professional fitness photography, ${genderPart}${typePart}, dark moody gym background, dramatic lighting, motivational, photorealistic, high quality. ${title}`;
-}
-
-interface GenerateResponse {
-  code: number;
-  msg: string;
-  data?: { taskId: string };
-}
-
-interface StatusResponse {
-  code: number;
-  successFlag: number; // 0 = in progress, 1 = done, 2 = failed
-  msg?: string;
-  data?: { urls: string[] };
-  progress?: number;
-}
-
-async function submitGeneration(prompt: string): Promise<string> {
-  const res = await fetch(`${KIE_BASE}/generate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${kieApiKey}`,
-    },
-    body: JSON.stringify({ prompt, size: '3:2', nVariants: 1, isEnhance: false }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`kie.ai generate error ${res.status}: ${await res.text()}`);
-  }
-
-  const json = await res.json() as GenerateResponse;
-  if (!json.data?.taskId) {
-    throw new Error(`kie.ai did not return a taskId: ${JSON.stringify(json)}`);
-  }
-  return json.data.taskId;
-}
-
-async function pollForResult(taskId: string, timeoutMs = 120_000): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 5000));
-
-    const res = await fetch(`${KIE_BASE}/record-info?taskId=${taskId}`, {
-      headers: { 'Authorization': `Bearer ${kieApiKey}` },
-    });
-
-    if (!res.ok) {
-      throw new Error(`kie.ai poll error ${res.status}: ${await res.text()}`);
-    }
-
-    const status = await res.json() as StatusResponse;
-
-    if (status.successFlag === 1 && status.data?.urls?.[0]) {
-      return status.data.urls[0];
-    }
-    if (status.successFlag === 2) {
-      throw new Error(`kie.ai generation failed: ${status.msg ?? 'unknown error'}`);
-    }
-
-    process.stdout.write(`  Progress: ${status.progress ?? '?'}%\r`);
-  }
-
-  throw new Error(`kie.ai generation timed out after ${timeoutMs / 1000}s`);
-}
-
-async function fetchBuffer(url: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith('https') ? https : http;
-    protocol.get(url, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (chunk: Buffer) => chunks.push(chunk));
-      res.on('end', () => resolve(Buffer.concat(chunks)));
-      res.on('error', reject);
-    }).on('error', reject);
-  });
-}
-
-async function uploadToStorage(planId: string, imageBuffer: Buffer): Promise<string> {
-  const file = bucket.file(`workout-thumbnails/${planId}.jpg`);
-  await file.save(imageBuffer, {
-    metadata: { contentType: 'image/jpeg' },
-    public: true,
-  });
-  return `https://storage.googleapis.com/${storageBucket}/workout-thumbnails/${planId}.jpg`;
-}
+// Curated Unsplash photos — one unique image per plan (w=800&q=80&fit=crop&h=450)
+const THUMBNAIL_MAP: Record<string, string> = {
+  '15-Min Bodyweight HIIT':
+    'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=800&q=80&fit=crop&h=450',
+  '15-Min Dumbbell Strength — Male':
+    'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800&q=80&fit=crop&h=450',
+  '15-Min Bodyweight Strength — Female':
+    'https://images.unsplash.com/photo-1518310383802-640c2de311b2?w=800&q=80&fit=crop&h=450',
+  '30-Min Gym Strength — Male':
+    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&fit=crop&h=450',
+  '30-Min Dumbbell Strength — Female':
+    'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80&fit=crop&h=450',
+  '30-Min No-Equipment HIIT':
+    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80&fit=crop&h=450',
+  '30-Min Cardio Blast':
+    'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800&q=80&fit=crop&h=450',
+  '45-Min Gym Strength — Male':
+    'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800&q=80&fit=crop&h=450',
+  '45-Min Gym Strength — Female':
+    'https://images.unsplash.com/photo-1574680178050-55c6a6a96e0a?w=800&q=80&fit=crop&h=450',
+  '45-Min Band HIIT':
+    'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=800&q=80&fit=crop&h=450',
+  '45-Min Flexibility & Mobility':
+    'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80&fit=crop&h=450',
+  '60-Min Gym Strength — Male':
+    'https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?w=800&q=80&fit=crop&h=450',
+  '60-Min Gym Strength — Female':
+    'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800&q=80&fit=crop&h=450',
+  '60-Min Cardio Endurance':
+    'https://images.unsplash.com/photo-1538805060514-97d9cc172698?w=800&q=80&fit=crop&h=450',
+  '60-Min Dumbbell HIIT — Male':
+    'https://images.unsplash.com/photo-1517438476312-10d79c077509?w=800&q=80&fit=crop&h=450',
+  '60-Min Flexibility & Yoga Flow':
+    'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80&fit=crop&h=450',
+};
 
 async function main() {
   console.log('Fetching workout plans from Firestore...');
@@ -150,35 +70,22 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Found ${plansSnap.size} plans. Generating images...\n`);
+  console.log(`Found ${plansSnap.size} plans. Assigning thumbnails...\n`);
 
   for (const planDoc of plansSnap.docs) {
-    const plan = planDoc.data();
-    const planId = planDoc.id;
-    const prompt = buildPrompt(plan.workoutType as string, plan.genderFocus as string, plan.title as string);
+    const title = planDoc.data().title as string;
+    const thumbnailUrl = THUMBNAIL_MAP[title];
 
-    console.log(`[${plan.title as string}]`);
-    console.log(`  Submitting...`);
-
-    try {
-      const taskId = await submitGeneration(prompt);
-      console.log(`  Task ID: ${taskId} — polling for result...`);
-
-      const imageUrl = await pollForResult(taskId);
-      console.log(`\n  Image URL: ${imageUrl}`);
-
-      const buffer = await fetchBuffer(imageUrl);
-      console.log(`  Downloaded ${buffer.length} bytes — uploading to Storage...`);
-
-      const thumbnailUrl = await uploadToStorage(planId, buffer);
-      await db.collection('workoutPlans').doc(planId).update({ thumbnailUrl });
-      console.log(`  Saved: ${thumbnailUrl}\n`);
-    } catch (err) {
-      console.error(`\n  FAILED: ${(err as Error).message}\n`);
+    if (!thumbnailUrl) {
+      console.warn(`  [SKIP] No thumbnail mapped for: "${title}"`);
+      continue;
     }
+
+    await db.collection('workoutPlans').doc(planDoc.id).update({ thumbnailUrl });
+    console.log(`  [OK] ${title}`);
   }
 
-  console.log('Done.');
+  console.log('\nDone. Thumbnails updated in Firestore.');
 }
 
 main().catch((err) => {

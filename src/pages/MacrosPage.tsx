@@ -45,20 +45,23 @@ export function MacrosPage() {
     try {
       imageUrl = await uploadMealPhoto(user.uid, pendingBase64, pendingMime);
     } catch { /* storage optional */ }
-    await addMacroLog(user.uid, {
-      date: todayISO(),
-      source: 'ai_photo',
-      imageUrl,
-      mealDescription: pendingResult.meal_description,
-      calories: pendingResult.calories,
-      proteinG: pendingResult.protein_g,
-      carbsG: pendingResult.carbs_g,
-      fatG: pendingResult.fat_g,
-      aiRawResponse: null,
-    });
-    setPendingResult(null);
-    refetch();
-    setSaving(false);
+    try {
+      await addMacroLog(user.uid, {
+        date: todayISO(),
+        source: 'ai_photo',
+        imageUrl,
+        mealDescription: pendingResult.meal_description,
+        calories: pendingResult.calories,
+        proteinG: pendingResult.protein_g,
+        carbsG: pendingResult.carbs_g,
+        fatG: pendingResult.fat_g,
+        aiRawResponse: null,
+      });
+      setPendingResult(null);
+      refetch();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveManual = async (data: { mealDescription: string; calories: number; proteinG: number; carbsG: number; fatG: number }) => {

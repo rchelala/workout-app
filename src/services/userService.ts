@@ -40,6 +40,7 @@ export async function createUserProfile(
     dailyProteinTarget: DEFAULT_PROTEIN_TARGET,
     dailyCarbsTarget: DEFAULT_CARBS_TARGET,
     dailyFatTarget: DEFAULT_FAT_TARGET,
+    weeklyWorkoutGoal: 3,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -60,7 +61,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 export async function updateUserProfile(
   uid: string,
   updates: Partial<
-    Pick<UserProfile, 'gender' | 'goal' | 'fitnessLevel' | 'equipment' | 'displayName' | 'onboardingComplete' | 'currentStreak' | 'longestStreak' | 'lastWorkoutDate' | 'dailyWaterGoal' | 'dailyCalorieTarget' | 'dailyProteinTarget' | 'dailyCarbsTarget' | 'dailyFatTarget'>
+    Pick<UserProfile, 'gender' | 'goal' | 'fitnessLevel' | 'equipment' | 'displayName' | 'onboardingComplete' | 'currentStreak' | 'longestStreak' | 'lastWorkoutDate' | 'dailyWaterGoal' | 'dailyCalorieTarget' | 'dailyProteinTarget' | 'dailyCarbsTarget' | 'dailyFatTarget' | 'weeklyWorkoutGoal'>
   >
 ): Promise<void> {
   await updateDoc(doc(db, 'users', uid), {

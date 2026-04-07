@@ -5,6 +5,7 @@ export interface BodyMetric {
   weightKg: number | null;
   heightCm: number | null;
   bicepsCm: number | null;
+  neckCm: number | null;
   chestCm: number | null;
   waistCm: number | null;
   hipsCm: number | null;

@@ -1,16 +1,19 @@
 import { useNavigate } from 'react-router-dom';
-import { Bell, Calendar } from 'lucide-react';
+import { Bell, Calendar, ChevronRight } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { StreakBadge } from '@/components/progress/StreakBadge';
 import { WaterTracker } from '@/components/water/WaterTracker';
 import { DailyMacroSummary } from '@/components/macros/DailyMacroSummary';
 import { WorkoutCard } from '@/components/workout/WorkoutCard';
+import { BarChart } from '@/components/ui/BarChart';
+import { LineChart } from '@/components/ui/LineChart';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useMacros } from '@/hooks/useMacros';
 import { useWater } from '@/hooks/useWater';
 import { useWorkoutPlans } from '@/hooks/useWorkoutPlans';
+import { useActivityCharts } from '@/hooks/useActivityCharts';
 import { todayISO } from '@/utils/formatters';
 
 export function HomePage() {
@@ -20,9 +23,12 @@ export function HomePage() {
   const { totals } = useMacros(user?.uid ?? null);
   const { glasses, increment, decrement } = useWater(user?.uid ?? null, userProfile?.dailyWaterGoal);
   const { plans, loading: plansLoading } = useWorkoutPlans();
+  const { weeklyBarData, effortLineData, completedThisWeek, loading: chartsLoading } = useActivityCharts(user?.uid ?? null);
 
   const todayWorkouts = scheduled.filter((s) => s.scheduledDate === todayISO() && !s.completed);
   const popularPlans = plans.slice(0, 4);
+  const weeklyGoal = userProfile?.weeklyWorkoutGoal ?? 3;
+  const weeklyProgress = Math.min(completedThisWeek / weeklyGoal, 1);
 
   return (
     <AppShell
@@ -62,6 +68,30 @@ export function HomePage() {
         </section>
       )}
 
+      {/* Weekly Goal Progress */}
+      <section className="mb-6">
+        <button
+          onClick={() => navigate('/schedule')}
+          className="w-full bg-surface rounded-2xl p-4 text-left"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-base font-semibold text-textPrimary">This Week</h2>
+              <p className="text-xs text-textMuted mt-0.5">
+                {completedThisWeek} of {weeklyGoal} workout{weeklyGoal !== 1 ? 's' : ''} completed
+              </p>
+            </div>
+            <ChevronRight size={18} className="text-textMuted" />
+          </div>
+          <div className="w-full h-2 bg-surfaceHigh rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accentGreen rounded-full transition-all duration-500"
+              style={{ width: `${weeklyProgress * 100}%` }}
+            />
+          </div>
+        </button>
+      </section>
+
       {/* Water */}
       <section className="mb-6">
         <WaterTracker
@@ -71,6 +101,28 @@ export function HomePage() {
           onDecrement={decrement}
         />
       </section>
+
+      {/* Activity Charts */}
+      {!chartsLoading && (
+        <>
+          <section className="mb-6">
+            <h2 className="text-lg font-semibold text-textPrimary mb-3">Weekly Activity</h2>
+            <div className="bg-surface rounded-2xl p-4">
+              <BarChart data={weeklyBarData} />
+            </div>
+          </section>
+
+          {effortLineData.length >= 2 && (
+            <section className="mb-6">
+              <h2 className="text-lg font-semibold text-textPrimary mb-3">Effort Trend</h2>
+              <div className="bg-surface rounded-2xl p-4">
+                <LineChart data={effortLineData} color="#FF6B35" />
+                <p className="text-xs text-textMuted mt-2 text-center">Effort rating (1–5) across last {effortLineData.length} workouts</p>
+              </div>
+            </section>
+          )}
+        </>
+      )}
 
       {/* Macros */}
       {userProfile && (

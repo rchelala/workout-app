@@ -4,27 +4,36 @@
  * Usage:
  *   npx ts-node --project tsconfig.json scripts/seedWorkouts.ts
  *
- * Requires: .env.local with VITE_FIREBASE_* vars (or set GOOGLE_APPLICATION_CREDENTIALS
- * for service account auth). This script uses the same Firebase client config.
+ * Requires: GOOGLE_APPLICATION_CREDENTIALS env var pointing to a Firebase
+ * service account JSON key, OR VITE_FIREBASE_PROJECT_ID set in .env/.env.local.
+ *
+ * Download service account key:
+ *   Firebase Console → Project Settings → Service Accounts → Generate new private key
  */
 
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const admin = require('firebase-admin') as typeof import('firebase-admin');
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
 
-const firebaseConfig = {
-  apiKey:            process.env.VITE_FIREBASE_API_KEY,
-  authDomain:        process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             process.env.VITE_FIREBASE_APP_ID,
-};
+const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+if (!projectId) {
+  console.error('VITE_FIREBASE_PROJECT_ID is not set');
+  process.exit(1);
+}
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+  projectId,
+});
+
+const db = admin.firestore();
+const serverTimestamp = admin.firestore.FieldValue.serverTimestamp;
+const collection = (path: string) => db.collection(path);
 
 interface ExerciseSeed {
   name: string;
@@ -265,7 +274,7 @@ async function seed() {
 
   for (const plan of plans) {
     const { exercises, ...planData } = plan;
-    const planRef = await addDoc(collection(db, 'workoutPlans'), {
+    const planRef = await collection('workoutPlans').add({
       ...planData,
       totalExercises: exercises.length,
       isPublished: true,
@@ -274,7 +283,7 @@ async function seed() {
     console.log(`  Created plan: ${plan.title} (${planRef.id})`);
 
     for (let i = 0; i < exercises.length; i++) {
-      await addDoc(collection(db, 'workoutPlans', planRef.id, 'exercises'), {
+      await db.collection('workoutPlans').doc(planRef.id).collection('exercises').add({
         ...exercises[i],
         sortOrder: i,
         isSuperset: false,

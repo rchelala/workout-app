@@ -73,6 +73,7 @@ export function ProgressPage() {
               {[
                 { label: 'Weight', key: 'weightKg', unit: 'kg' },
                 { label: 'Body Fat', key: 'bodyFatPercent', unit: '%' },
+                { label: 'Neck', key: 'neckCm', unit: 'cm' },
                 { label: 'Biceps', key: 'bicepsCm', unit: 'cm' },
                 { label: 'Chest', key: 'chestCm', unit: 'cm' },
                 { label: 'Waist', key: 'waistCm', unit: 'cm' },
@@ -93,7 +94,7 @@ export function ProgressPage() {
       )}
 
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Log Measurements">
-        <MeasurementForm onSubmit={handleSubmit} />
+        <MeasurementForm gender={userProfile?.gender ?? 'male'} onSubmit={handleSubmit} />
       </Modal>
     </AppShell>
   );

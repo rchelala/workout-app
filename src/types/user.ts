@@ -20,6 +20,7 @@ export interface UserProfile {
   dailyProteinTarget: number;
   dailyCarbsTarget: number;
   dailyFatTarget: number;
+  weeklyWorkoutGoal: number;
   createdAt: string;
   updatedAt: string;
 }

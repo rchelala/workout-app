@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, Minus, Plus } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { signOut } from '@/services/authService';
+import { updateUserProfile } from '@/services/userService';
 import { useNavigate } from 'react-router-dom';
 import type { FitnessGoal, FitnessLevel, Equipment } from '@/types/user';
 
@@ -22,11 +23,19 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [weeklyGoal, setWeeklyGoal] = useState(userProfile?.weeklyWorkoutGoal ?? 3);
 
   const handleSignOut = async () => {
     setSigningOut(true);
     await signOut();
     navigate('/auth/login');
+  };
+
+  const adjustWeeklyGoal = async (delta: number) => {
+    if (!user) return;
+    const next = Math.min(7, Math.max(1, weeklyGoal + delta));
+    setWeeklyGoal(next);
+    await updateUserProfile(user.uid, { weeklyWorkoutGoal: next });
   };
 
   const stat = (label: string, value: string) => (
@@ -53,6 +62,33 @@ export function ProfilePage() {
       <section className="bg-surface rounded-2xl px-4 mb-4">
         {stat('Current Streak', `${userProfile?.currentStreak ?? 0} days 🔥`)}
         {stat('Longest Streak', `${userProfile?.longestStreak ?? 0} days`)}
+      </section>
+
+      {/* Weekly Goal */}
+      <section className="bg-surface rounded-2xl px-4 mb-4">
+        <h3 className="text-xs font-semibold text-textMuted uppercase tracking-wider pt-3 pb-1">Workout Goal</h3>
+        <div className="flex items-center justify-between py-3">
+          <span className="text-sm text-textMuted">Weekly Workout Goal</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => adjustWeeklyGoal(-1)}
+              disabled={weeklyGoal <= 1}
+              className="w-8 h-8 rounded-full bg-surfaceHigh flex items-center justify-center text-textPrimary disabled:text-textDisabled"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="text-sm font-semibold text-textPrimary w-16 text-center">
+              {weeklyGoal} day{weeklyGoal !== 1 ? 's' : ''}
+            </span>
+            <button
+              onClick={() => adjustWeeklyGoal(1)}
+              disabled={weeklyGoal >= 7}
+              className="w-8 h-8 rounded-full bg-surfaceHigh flex items-center justify-center text-textPrimary disabled:text-textDisabled"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Settings */}

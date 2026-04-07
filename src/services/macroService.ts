@@ -1,6 +1,8 @@
 import {
   collection,
   addDoc,
+  deleteDoc,
+  doc,
   query,
   where,
   getDocs,
@@ -52,6 +54,10 @@ export async function addMacroLog(
     loggedAt: serverTimestamp(),
   });
   return ref2.id;
+}
+
+export async function deleteMacroLog(logId: string): Promise<void> {
+  await deleteDoc(doc(db, 'macroLogs', logId));
 }
 
 export async function getDailyMacros(userId: string, date: string): Promise<MacroLog[]> {

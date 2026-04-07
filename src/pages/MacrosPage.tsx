@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { MacroCameraUpload } from '@/components/macros/MacroCameraUpload';
 import { MacroResultCard } from '@/components/macros/MacroResultCard';
@@ -7,7 +8,7 @@ import { DailyMacroSummary } from '@/components/macros/DailyMacroSummary';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useMacros } from '@/hooks/useMacros';
-import { analyzeMealPhoto, addMacroLog, uploadMealPhoto } from '@/services/macroService';
+import { analyzeMealPhoto, addMacroLog, uploadMealPhoto, deleteMacroLog } from '@/services/macroService';
 import type { MealAnalysisResult } from '@/types/macro';
 import { todayISO } from '@/utils/formatters';
 
@@ -21,6 +22,7 @@ export function MacrosPage() {
   const [pendingBase64, setPendingBase64] = useState('');
   const [pendingMime, setPendingMime] = useState<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'camera' | 'manual'>('camera');
 
   const handleUploadReady = async (base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => {
@@ -68,6 +70,16 @@ export function MacrosPage() {
     }
   };
 
+  const handleDelete = async (logId: string) => {
+    setDeletingId(logId);
+    try {
+      await deleteMacroLog(logId);
+      refetch();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleSaveManual = async (data: { mealDescription: string; calories: number; proteinG: number; carbsG: number; fatG: number }) => {
     if (!user) return;
     await addMacroLog(user.uid, {
@@ -104,9 +116,18 @@ export function MacrosPage() {
               <div key={log.logId} className="bg-surface rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-medium text-textPrimary flex-1 mr-2">{log.mealDescription}</p>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${log.source === 'ai_photo' ? 'bg-accent/20 text-accent' : 'bg-surfaceHigh text-textMuted'}`}>
-                    {log.source === 'ai_photo' ? 'AI' : 'Manual'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${log.source === 'ai_photo' ? 'bg-accent/20 text-accent' : 'bg-surfaceHigh text-textMuted'}`}>
+                      {log.source === 'ai_photo' ? 'AI' : 'Manual'}
+                    </span>
+                    <button
+                      onClick={() => handleDelete(log.logId)}
+                      disabled={deletingId === log.logId}
+                      className="p-1 rounded-lg text-textMuted hover:text-danger transition-colors disabled:opacity-50"
+                    >
+                      {deletingId === log.logId ? <Spinner size="sm" /> : <Trash2 size={15} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div>

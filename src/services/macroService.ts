@@ -60,6 +60,20 @@ export async function deleteMacroLog(logId: string): Promise<void> {
   await deleteDoc(doc(db, 'macroLogs', logId));
 }
 
+export async function getMacroDatesWithEntries(userId: string): Promise<string[]> {
+  const q = query(
+    collection(db, 'macroLogs'),
+    where('userId', '==', userId)
+  );
+  const snap = await getDocs(q);
+  const dates = new Set<string>();
+  snap.docs.forEach((d) => {
+    const date = d.data().date as string | undefined;
+    if (date) dates.add(date);
+  });
+  return Array.from(dates);
+}
+
 export async function getDailyMacros(userId: string, date: string): Promise<MacroLog[]> {
   const q = query(
     collection(db, 'macroLogs'),

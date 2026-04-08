@@ -1,20 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Trash2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { MacroCameraUpload } from '@/components/macros/MacroCameraUpload';
 import { MacroResultCard } from '@/components/macros/MacroResultCard';
 import { MacroManualForm } from '@/components/macros/MacroManualForm';
 import { DailyMacroSummary } from '@/components/macros/DailyMacroSummary';
+import { MacroCalendar } from '@/components/macros/MacroCalendar';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useMacros } from '@/hooks/useMacros';
-import { analyzeMealPhoto, addMacroLog, uploadMealPhoto, deleteMacroLog } from '@/services/macroService';
+import { analyzeMealPhoto, addMacroLog, uploadMealPhoto, deleteMacroLog, getMacroDatesWithEntries } from '@/services/macroService';
 import type { MealAnalysisResult } from '@/types/macro';
 import { todayISO } from '@/utils/formatters';
 
 export function MacrosPage() {
   const { user, userProfile } = useAuth();
-  const { totals, logs, loading, refetch } = useMacros(user?.uid ?? null);
+  const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
+  const [datesWithEntries, setDatesWithEntries] = useState<Set<string>>(new Set());
+
+  const { totals, logs, loading, refetch } = useMacros(user?.uid ?? null, selectedDate);
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
@@ -24,6 +28,16 @@ export function MacrosPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'camera' | 'manual'>('camera');
+
+  const refreshEntryDates = useCallback(async () => {
+    if (!user) return;
+    const dates = await getMacroDatesWithEntries(user.uid);
+    setDatesWithEntries(new Set(dates));
+  }, [user]);
+
+  useEffect(() => {
+    refreshEntryDates();
+  }, [refreshEntryDates]);
 
   const handleUploadReady = async (base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => {
     setPendingBase64(base64);
@@ -53,7 +67,7 @@ export function MacrosPage() {
     } catch { /* storage optional */ }
     try {
       await addMacroLog(user.uid, {
-        date: todayISO(),
+        date: selectedDate,
         source: 'ai_photo',
         imageUrl,
         mealDescription: edited.meal_description,
@@ -65,6 +79,7 @@ export function MacrosPage() {
       });
       setPendingResult(null);
       refetch();
+      refreshEntryDates();
     } finally {
       setSaving(false);
     }
@@ -75,6 +90,7 @@ export function MacrosPage() {
     try {
       await deleteMacroLog(logId);
       refetch();
+      refreshEntryDates();
     } finally {
       setDeletingId(null);
     }
@@ -83,7 +99,7 @@ export function MacrosPage() {
   const handleSaveManual = async (data: { mealDescription: string; calories: number; proteinG: number; carbsG: number; fatG: number }) => {
     if (!user) return;
     await addMacroLog(user.uid, {
-      date: todayISO(),
+      date: selectedDate,
       source: 'manual',
       imageUrl: null,
       mealDescription: data.mealDescription,
@@ -94,10 +110,23 @@ export function MacrosPage() {
       aiRawResponse: null,
     });
     refetch();
+    refreshEntryDates();
   };
+
+  const isToday = selectedDate === todayISO();
+  const mealsHeading = isToday
+    ? "Today's Meals"
+    : `Meals on ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
   return (
     <AppShell title="Macros">
+      {/* Calendar */}
+      <MacroCalendar
+        selectedDate={selectedDate}
+        datesWithEntries={datesWithEntries}
+        onSelectDate={setSelectedDate}
+      />
+
       {/* Summary */}
       {userProfile && (
         <section className="mb-6">
@@ -107,10 +136,10 @@ export function MacrosPage() {
         </section>
       )}
 
-      {/* Today's Meals */}
+      {/* Meals list */}
       {logs.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-semibold text-textPrimary mb-3">Today's Meals</h2>
+          <h2 className="text-base font-semibold text-textPrimary mb-3">{mealsHeading}</h2>
           <div className="flex flex-col gap-3">
             {logs.map((log) => (
               <div key={log.logId} className="bg-surface rounded-xl p-4">
@@ -156,47 +185,49 @@ export function MacrosPage() {
         </section>
       )}
 
-      {/* Tabs */}
-      <div className="flex bg-surface rounded-xl p-1 mb-4">
-        {(['camera', 'manual'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={[
-              'flex-1 py-2 text-sm font-medium rounded-lg transition-colors capitalize',
-              activeTab === tab ? 'bg-accent text-white' : 'text-textMuted',
-            ].join(' ')}
-          >
-            {tab === 'camera' ? 'AI Photo' : 'Manual Entry'}
-          </button>
-        ))}
-      </div>
+      {/* Add meal — only shown for today */}
+      {isToday && (
+        <>
+          <div className="flex bg-surface rounded-xl p-1 mb-4">
+            {(['camera', 'manual'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={[
+                  'flex-1 py-2 text-sm font-medium rounded-lg transition-colors capitalize',
+                  activeTab === tab ? 'bg-accent text-white' : 'text-textMuted',
+                ].join(' ')}
+              >
+                {tab === 'camera' ? 'AI Photo' : 'Manual Entry'}
+              </button>
+            ))}
+          </div>
 
-      {activeTab === 'camera' ? (
-        <section>
-          {pendingResult ? (
-            <MacroResultCard
-              result={pendingResult}
-              onSave={handleSaveAI}
-              onDiscard={() => setPendingResult(null)}
-              saving={saving}
-            />
-          ) : (
-            <>
-              <MacroCameraUpload
-                onUploadReady={handleUploadReady}
-              />
-              {analyzing && (
-                <div className="flex items-center justify-center gap-2 mt-4 text-textMuted">
-                  <Spinner size="sm" /> <span className="text-sm">Analyzing meal…</span>
-                </div>
+          {activeTab === 'camera' ? (
+            <section>
+              {pendingResult ? (
+                <MacroResultCard
+                  result={pendingResult}
+                  onSave={handleSaveAI}
+                  onDiscard={() => setPendingResult(null)}
+                  saving={saving}
+                />
+              ) : (
+                <>
+                  <MacroCameraUpload onUploadReady={handleUploadReady} />
+                  {analyzing && (
+                    <div className="flex items-center justify-center gap-2 mt-4 text-textMuted">
+                      <Spinner size="sm" /> <span className="text-sm">Analyzing meal…</span>
+                    </div>
+                  )}
+                  {analyzeError && <p className="text-xs text-danger mt-2">{analyzeError}</p>}
+                </>
               )}
-              {analyzeError && <p className="text-xs text-danger mt-2">{analyzeError}</p>}
-            </>
+            </section>
+          ) : (
+            <MacroManualForm onSubmit={handleSaveManual} />
           )}
-        </section>
-      ) : (
-        <MacroManualForm onSubmit={handleSaveManual} />
+        </>
       )}
     </AppShell>
   );

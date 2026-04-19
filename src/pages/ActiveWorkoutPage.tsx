@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { X, SkipForward } from 'lucide-react';
 import { SetLogger } from '@/components/workout/SetLogger';
 import { RestTimerOverlay } from '@/components/workout/RestTimerOverlay';
@@ -14,6 +14,7 @@ import { useActiveWorkout } from '@/hooks/useActiveWorkout';
 import { useAuth } from '@/hooks/useAuth';
 import { getExercisesForPlan, getPlanById } from '@/services/workoutService';
 import { startSession, completeSession, rateSession } from '@/services/sessionService';
+import { markScheduledComplete } from '@/services/scheduleService';
 import { updateStreak } from '@/services/streakService';
 import type { Exercise, WorkoutPlan } from '@/types/workout';
 import { formatSeconds } from '@/utils/formatters';
@@ -23,6 +24,8 @@ type WorkoutPhase = 'ready' | 'set-active' | 'rest-ready' | 'resting';
 export function ActiveWorkoutPage() {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const scheduleId = (location.state as { scheduleId?: string } | null)?.scheduleId ?? null;
   const { user, userProfile } = useAuth();
 
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
@@ -89,6 +92,13 @@ export function ActiveWorkoutPage() {
       if (sessionId) {
         await completeSession(sessionId, timer.elapsedSecs, workout.totalSetsCompleted, workout.exerciseLogs);
         await rateSession(sessionId, rating);
+        if (scheduleId) {
+          try {
+            await markScheduledComplete(scheduleId, sessionId);
+          } catch {
+            // Non-blocking — schedule marking failure should not prevent workout save
+          }
+        }
       }
       if (userProfile) await updateStreak(userProfile);
       navigate('/');

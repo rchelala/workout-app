@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { WeekStrip } from '@/components/schedule/WeekStrip';
 import { ScheduleEventCard } from '@/components/schedule/ScheduleEventCard';
+import { DayOverviewModal } from '@/components/schedule/DayOverviewModal';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -22,6 +23,7 @@ export function SchedulePage() {
   const { plans } = useWorkoutPlans();
 
   const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [overviewDate, setOverviewDate] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
@@ -30,6 +32,11 @@ export function SchedulePage() {
 
   const workoutDates = [...new Set(scheduled.map((s) => s.scheduledDate))];
   const dayEvents = scheduled.filter((s) => s.scheduledDate === selectedDate);
+
+  const handleSelectDate = (date: string) => {
+    setSelectedDate(date);
+    setOverviewDate(date);
+  };
 
   const handleAdd = async () => {
     if (!user || !selectedPlanId) return;
@@ -64,7 +71,11 @@ export function SchedulePage() {
         </button>
       }
     >
-      <WeekStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} workoutDates={workoutDates} />
+      <WeekStrip
+        selectedDate={selectedDate}
+        onSelectDate={handleSelectDate}
+        workoutDates={workoutDates}
+      />
 
       <div className="mt-4 flex flex-col gap-3">
         {loading ? (
@@ -80,7 +91,7 @@ export function SchedulePage() {
               key={event.scheduleId}
               event={event}
               onDelete={handleDelete}
-              onStart={(planId) => navigate(`/plans/${planId}`)}
+              onStart={(planId, scheduleId) => navigate(`/plans/${planId}`, { state: { scheduleId } })}
             />
           ))
         )}
@@ -112,6 +123,14 @@ export function SchedulePage() {
 
       {scheduleError && !addOpen && (
         <Toast message={scheduleError} type="error" onDismiss={() => setScheduleError(null)} />
+      )}
+
+      {overviewDate && user && (
+        <DayOverviewModal
+          date={overviewDate}
+          userId={user.uid}
+          onClose={() => setOverviewDate(null)}
+        />
       )}
     </AppShell>
   );

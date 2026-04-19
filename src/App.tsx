@@ -16,6 +16,7 @@ import { OnboardingEquipment } from '@/pages/onboarding/OnboardingEquipment';
 // App pages
 import { HomePage } from '@/pages/HomePage';
 import { PlansPage } from '@/pages/PlansPage';
+import { CustomWorkoutBuilderPage } from '@/pages/CustomWorkoutBuilderPage';
 import { WorkoutDetailPage } from '@/pages/WorkoutDetailPage';
 import { ActiveWorkoutPage } from '@/pages/ActiveWorkoutPage';
 import { QuickLogPage } from '@/pages/QuickLogPage';
@@ -46,6 +47,8 @@ export default function App() {
           <Route path="/plans/:planId" element={<ProtectedRoute><WorkoutDetailPage /></ProtectedRoute>} />
           <Route path="/workout/active/:planId" element={<ProtectedRoute><ActiveWorkoutPage /></ProtectedRoute>} />
           <Route path="/workout/quick-log" element={<ProtectedRoute><QuickLogPage /></ProtectedRoute>} />
+          <Route path="/workout/builder" element={<ProtectedRoute><CustomWorkoutBuilderPage /></ProtectedRoute>} />
+          <Route path="/workout/builder/:planId" element={<ProtectedRoute><CustomWorkoutBuilderPage /></ProtectedRoute>} />
           <Route path="/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
           <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
           <Route path="/macros" element={<ProtectedRoute><MacrosPage /></ProtectedRoute>} />

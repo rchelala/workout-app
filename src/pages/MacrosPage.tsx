@@ -4,13 +4,15 @@ import { AppShell } from '@/components/layout/AppShell';
 import { MacroCameraUpload } from '@/components/macros/MacroCameraUpload';
 import { MacroResultCard } from '@/components/macros/MacroResultCard';
 import { MacroManualForm } from '@/components/macros/MacroManualForm';
+import { MacroTextForm } from '@/components/macros/MacroTextForm';
+import { FoodSearchBox } from '@/components/macros/FoodSearchBox';
 import { DailyMacroSummary } from '@/components/macros/DailyMacroSummary';
 import { MacroCalendar } from '@/components/macros/MacroCalendar';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useMacros } from '@/hooks/useMacros';
 import { analyzeMealPhoto, addMacroLog, uploadMealPhoto, deleteMacroLog, getMacroDatesWithEntries } from '@/services/macroService';
-import type { MealAnalysisResult } from '@/types/macro';
+import type { MealAnalysisResult, MacroSource } from '@/types/macro';
 import { todayISO } from '@/utils/formatters';
 
 export function MacrosPage() {
@@ -27,7 +29,9 @@ export function MacrosPage() {
   const [pendingMime, setPendingMime] = useState<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'camera' | 'manual'>('camera');
+  const [activeTab, setActiveTab] = useState<'camera' | 'search' | 'manual'>('camera');
+  const [pendingSource, setPendingSource] = useState<MacroSource>('ai_photo');
+  const [showTextFallback, setShowTextFallback] = useState(false);
 
   const refreshEntryDates = useCallback(async () => {
     if (!user) return;
@@ -42,7 +46,9 @@ export function MacrosPage() {
   const handleUploadReady = async (base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => {
     setPendingBase64(base64);
     setPendingMime(mimeType);
+    setPendingSource('ai_photo');
     setAnalyzeError(null);
+    setShowTextFallback(false);
     setAnalyzing(true);
     try {
       const result = await analyzeMealPhoto(base64, mimeType);
@@ -58,17 +64,19 @@ export function MacrosPage() {
     if (!user) return;
     setSaving(true);
     let imageUrl: string | null = null;
-    try {
-      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
-      imageUrl = await Promise.race([
-        uploadMealPhoto(user.uid, pendingBase64, pendingMime),
-        timeout,
-      ]);
-    } catch { /* storage optional */ }
+    if (pendingBase64) {
+      try {
+        const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+        imageUrl = await Promise.race([
+          uploadMealPhoto(user.uid, pendingBase64, pendingMime),
+          timeout,
+        ]);
+      } catch { /* storage optional */ }
+    }
     try {
       await addMacroLog(user.uid, {
         date: selectedDate,
-        source: 'ai_photo',
+        source: pendingSource,
         imageUrl,
         mealDescription: edited.meal_description,
         calories: edited.calories,
@@ -78,6 +86,7 @@ export function MacrosPage() {
         aiRawResponse: null,
       });
       setPendingResult(null);
+      setPendingBase64('');
       refetch();
       refreshEntryDates();
     } finally {
@@ -189,16 +198,16 @@ export function MacrosPage() {
       {isToday && (
         <>
           <div className="flex bg-surface rounded-xl p-1 mb-4">
-            {(['camera', 'manual'] as const).map((tab) => (
+            {(['camera', 'search', 'manual'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={[
-                  'flex-1 py-2 text-sm font-medium rounded-lg transition-colors capitalize',
+                  'flex-1 py-2 text-sm font-medium rounded-lg transition-colors',
                   activeTab === tab ? 'bg-accent text-white' : 'text-textMuted',
                 ].join(' ')}
               >
-                {tab === 'camera' ? 'AI Photo' : 'Manual Entry'}
+                {tab === 'camera' ? 'AI Photo' : tab === 'search' ? 'Search Food' : 'Manual Entry'}
               </button>
             ))}
           </div>
@@ -209,7 +218,7 @@ export function MacrosPage() {
                 <MacroResultCard
                   result={pendingResult}
                   onSave={handleSaveAI}
-                  onDiscard={() => setPendingResult(null)}
+                  onDiscard={() => { setPendingResult(null); setPendingBase64(''); }}
                   saving={saving}
                 />
               ) : (
@@ -220,8 +229,52 @@ export function MacrosPage() {
                       <Spinner size="sm" /> <span className="text-sm">Analyzing meal…</span>
                     </div>
                   )}
-                  {analyzeError && <p className="text-xs text-danger mt-2">{analyzeError}</p>}
+                  {analyzeError && (
+                    <>
+                      <p className="text-xs text-danger mt-2">{analyzeError}</p>
+                      <div className="mt-3">
+                        <p className="text-xs text-textMuted mb-2">Try describing your meal instead:</p>
+                        {showTextFallback ? (
+                          <MacroTextForm
+                            onResult={(result) => {
+                              setPendingResult(result);
+                              setPendingSource('manual');
+                              setShowTextFallback(false);
+                              setAnalyzeError(null);
+                            }}
+                            onCancel={() => setShowTextFallback(false)}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setShowTextFallback(true)}
+                            className="text-sm text-accent underline"
+                          >
+                            Describe your meal instead →
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </>
+              )}
+            </section>
+          ) : activeTab === 'search' ? (
+            <section>
+              {pendingResult ? (
+                <MacroResultCard
+                  result={pendingResult}
+                  onSave={handleSaveAI}
+                  onDiscard={() => { setPendingResult(null); setPendingBase64(''); }}
+                  saving={saving}
+                />
+              ) : (
+                <FoodSearchBox
+                  onResult={(result) => {
+                    setPendingSource('manual');
+                    setPendingBase64('');
+                    setPendingResult(result);
+                  }}
+                />
               )}
             </section>
           ) : (

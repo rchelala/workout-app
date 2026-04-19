@@ -63,3 +63,23 @@ export async function markScheduledComplete(
 export async function deleteScheduledWorkout(scheduleId: string): Promise<void> {
   await deleteDoc(doc(db, 'scheduledWorkouts', scheduleId));
 }
+
+export async function getScheduledWorkoutsForDate(
+  userId: string,
+  date: string
+): Promise<ScheduledWorkout[]> {
+  const q = query(
+    collection(db, 'scheduledWorkouts'),
+    where('userId', '==', userId),
+    where('scheduledDate', '==', date)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      scheduleId: d.id,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    } as ScheduledWorkout;
+  });
+}

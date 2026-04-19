@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Dumbbell, Clock, Calendar } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { ExerciseListItem } from '@/components/workout/ExerciseListItem';
@@ -17,6 +17,8 @@ import { todayISO } from '@/utils/formatters';
 export function WorkoutDetailPage() {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const scheduleId = (location.state as { scheduleId?: string } | null)?.scheduleId ?? null;
   const { user } = useAuth();
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -109,7 +111,7 @@ export function WorkoutDetailPage() {
         variant="primary"
         fullWidth
         size="lg"
-        onClick={() => navigate(`/workout/active/${plan.planId}`)}
+        onClick={() => navigate(`/workout/active/${plan.planId}`, { state: { scheduleId } })}
       >
         Start Workout
       </Button>

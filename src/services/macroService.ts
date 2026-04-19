@@ -32,6 +32,28 @@ export async function analyzeMealPhoto(
   return data.result as MealAnalysisResult;
 }
 
+export async function analyzeMealText(mealText: string): Promise<MealAnalysisResult> {
+  const response = await fetch('/api/analyze-meal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mealText }),
+  });
+  const data = await response.json() as { result: MealAnalysisResult | string; raw?: boolean };
+  if (data.raw) throw new Error('Could not parse meal text analysis');
+  return data.result as MealAnalysisResult;
+}
+
+export async function searchFoodNutrition(query: string): Promise<MealAnalysisResult> {
+  const response = await fetch('/api/search-food', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  const data = await response.json() as { result: MealAnalysisResult | string; raw?: boolean; error?: string };
+  if (data.raw || data.error) throw new Error(data.error ?? 'Could not find nutrition data');
+  return data.result as MealAnalysisResult;
+}
+
 export async function uploadMealPhoto(
   userId: string,
   base64: string,

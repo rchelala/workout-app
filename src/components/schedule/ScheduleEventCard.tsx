@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 interface ScheduleEventCardProps {
   event: ScheduledWorkout;
   onDelete: (id: string) => void;
-  onStart: (planId: string) => void;
+  onStart: (planId: string, scheduleId: string) => void;
 }
 
 export function ScheduleEventCard({ event, onDelete, onStart }: ScheduleEventCardProps) {
@@ -27,7 +27,7 @@ export function ScheduleEventCard({ event, onDelete, onStart }: ScheduleEventCar
       </div>
       <div className="flex items-center gap-2">
         {!event.completed && (
-          <Button size="sm" variant="primary" onClick={() => onStart(event.planId)}>
+          <Button size="sm" variant="primary" onClick={() => onStart(event.planId, event.scheduleId)}>
             Start
           </Button>
         )}

@@ -42,6 +42,8 @@ export interface WorkoutPlan {
   totalExercises: number;
   isPublished: boolean;
   createdAt: string;
+  ownerId?: string;   // set for user-created plans
+  isCustom?: boolean; // true for user-created plans
 }
 
 export interface SetLog {

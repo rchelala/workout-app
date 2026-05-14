@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LogOut, Minus, Plus } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
@@ -48,9 +48,26 @@ export function ProfilePage() {
   const [carbsTarget, setCarbsTarget] = useState(userProfile?.dailyCarbsTarget ?? 200);
   const [fatTarget, setFatTarget] = useState(userProfile?.dailyFatTarget ?? 65);
   const [applying, setApplying] = useState(false);
+  const [calculateError, setCalculateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userProfile) return;
+    setAge(userProfile.age?.toString() ?? '');
+    setHeightCm(userProfile.heightCm?.toString() ?? '');
+    setWeightKg(userProfile.weightKg?.toString() ?? '');
+    setActivityLevel(userProfile.activityLevel ?? null);
+    setCalTarget(userProfile.dailyCalorieTarget);
+    setProteinTarget(userProfile.dailyProteinTarget);
+    setCarbsTarget(userProfile.dailyCarbsTarget);
+    setFatTarget(userProfile.dailyFatTarget);
+  }, [userProfile?.uid]);
 
   const canCalculate =
-    age !== '' && heightCm !== '' && weightKg !== '' && activityLevel !== null && !!userProfile;
+    age !== '' && !isNaN(parseFloat(age)) &&
+    heightCm !== '' && !isNaN(parseFloat(heightCm)) &&
+    weightKg !== '' && !isNaN(parseFloat(weightKg)) &&
+    activityLevel !== null &&
+    !!userProfile;
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -89,12 +106,15 @@ export function ProfilePage() {
       goal: userProfile.goal,
     });
     setApplying(true);
+    setCalculateError(null);
     try {
       await updateUserProfile(user.uid, targets);
       setCalTarget(targets.dailyCalorieTarget);
       setProteinTarget(targets.dailyProteinTarget);
       setCarbsTarget(targets.dailyCarbsTarget);
       setFatTarget(targets.dailyFatTarget);
+    } catch {
+      setCalculateError('Failed to save targets. Please try again.');
     } finally {
       setApplying(false);
     }
@@ -273,6 +293,9 @@ export function ProfilePage() {
               ? 'Calculate & Apply Targets'
               : 'Fill in Body Stats above to calculate'}
         </button>
+        {calculateError && (
+          <p className="text-xs text-danger mt-1">{calculateError}</p>
+        )}
       </section>
 
       {/* Daily Targets (water only — calories/macros live in Macro Targets above) */}

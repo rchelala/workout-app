@@ -37,10 +37,11 @@ export function calculateMacroTargets(input: TDEEInput): MacroTargets {
   const bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + genderOffset;
   const tdee = Math.round(bmr * ACTIVITY_MULTIPLIER[activityLevel]);
   const dailyCalorieTarget = tdee + GOAL_ADJUSTMENT[goal];
+  // ~2 g/kg — standard hypertrophy floor applied to all goals
   const dailyProteinTarget = Math.round(weightKg * 2.205 * 0.9);
   const fatCal = Math.round(dailyCalorieTarget * 0.25);
   const dailyFatTarget = Math.round(fatCal / 9);
   const carbCal = dailyCalorieTarget - dailyProteinTarget * 4 - dailyFatTarget * 9;
-  const dailyCarbsTarget = Math.round(carbCal / 4);
+  const dailyCarbsTarget = Math.max(0, Math.round(carbCal / 4));
   return { dailyCalorieTarget, dailyProteinTarget, dailyCarbsTarget, dailyFatTarget };
 }

@@ -134,6 +134,7 @@ export function MacrosPage() {
       setPendingBase64('');
       refetch();
       refreshEntryDates();
+      setRecentLoaded(false); // invalidate recent cache
     } finally {
       setSaving(false);
     }
@@ -171,6 +172,7 @@ export function MacrosPage() {
     });
     refetch();
     refreshEntryDates();
+    setRecentLoaded(false); // invalidate recent cache
   };
 
   const handleAddRecent = async (meal: MacroLog) => {
@@ -191,6 +193,7 @@ export function MacrosPage() {
       });
       refetch();
       refreshEntryDates();
+      setRecentLoaded(false); // invalidate recent cache — allows reload next tab switch
     } catch {
       setRecentError('Failed to add meal. Please try again.');
     } finally {

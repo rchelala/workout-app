@@ -85,6 +85,7 @@ export function ProfilePage() {
   const saveBodyStat = async (field: 'age' | 'heightCm' | 'weightKg', raw: string) => {
     if (!user) return;
     const value = raw !== '' ? parseFloat(raw) : null;
+    if (value !== null && isNaN(value)) return; // reject partial/invalid input
     await updateUserProfile(user.uid, { [field]: value });
   };
 
@@ -97,10 +98,23 @@ export function ProfilePage() {
 
   const handleCalculate = async () => {
     if (!user || !userProfile || !canCalculate) return;
+    const parsedAge = parseFloat(age);
+    const parsedHeight = parseFloat(heightCm);
+    const parsedWeight = parseFloat(weightKg);
+
+    if (
+      parsedAge < 10 || parsedAge > 120 ||
+      parsedHeight < 50 || parsedHeight > 280 ||
+      parsedWeight < 20 || parsedWeight > 500
+    ) {
+      setCalculateError('Please enter valid body stats before calculating.');
+      return;
+    }
+
     const targets = calculateMacroTargets({
-      age: parseInt(age),
-      heightCm: parseInt(heightCm),
-      weightKg: parseFloat(weightKg),
+      age: parsedAge,
+      heightCm: parsedHeight,
+      weightKg: parsedWeight,
       activityLevel: activityLevel!,
       gender: userProfile.gender,
       goal: userProfile.goal,

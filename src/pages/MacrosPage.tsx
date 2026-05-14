@@ -385,6 +385,9 @@ export function MacrosPage() {
                         <p className="text-xs text-textMuted mt-1">
                           {meal.calories} kcal · {meal.proteinG}g protein · {meal.carbsG}g carbs · {meal.fatG}g fat
                         </p>
+                        <p className="text-xs text-textMuted mt-0.5">
+                          Last logged: {new Date(meal.loggedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
                       </div>
                       <button
                         onClick={() => handleAddRecent(meal)}

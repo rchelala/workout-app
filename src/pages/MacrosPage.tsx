@@ -53,6 +53,7 @@ export function MacrosPage() {
   const [recentLoading, setRecentLoading] = useState(false);
   const [recentLoaded, setRecentLoaded] = useState(false);
   const [addingRecentId, setAddingRecentId] = useState<string | null>(null);
+  const [recentError, setRecentError] = useState<string | null>(null);
 
   const refreshEntryDates = useCallback(async () => {
     if (!user) return;
@@ -66,11 +67,14 @@ export function MacrosPage() {
 
   const loadRecentMeals = useCallback(async () => {
     if (!user || recentLoaded) return;
+    setRecentError(null);
     setRecentLoading(true);
     try {
       const meals = await getRecentUniqueMeals(user.uid);
       setRecentMeals(meals);
       setRecentLoaded(true);
+    } catch {
+      setRecentError('Could not load recent meals. Try again.');
     } finally {
       setRecentLoading(false);
     }
@@ -172,6 +176,7 @@ export function MacrosPage() {
   const handleAddRecent = async (meal: MacroLog) => {
     if (!user) return;
     setAddingRecentId(meal.logId);
+    setRecentError(null);
     try {
       await addMacroLog(user.uid, {
         date: selectedDate,
@@ -186,6 +191,8 @@ export function MacrosPage() {
       });
       refetch();
       refreshEntryDates();
+    } catch {
+      setRecentError('Failed to add meal. Please try again.');
     } finally {
       setAddingRecentId(null);
     }
@@ -367,6 +374,8 @@ export function MacrosPage() {
             <section>
               {recentLoading ? (
                 <div className="flex justify-center py-8"><Spinner /></div>
+              ) : recentError ? (
+                <p className="text-sm text-danger text-center py-8">{recentError}</p>
               ) : recentMeals.length === 0 ? (
                 <p className="text-sm text-textMuted text-center py-8">
                   No meals logged yet.

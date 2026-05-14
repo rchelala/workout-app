@@ -114,3 +114,31 @@ export async function getDailyMacros(userId: string, date: string): Promise<Macr
     })
     .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
 }
+
+export async function getRecentUniqueMeals(userId: string, limit = 20): Promise<MacroLog[]> {
+  const q = query(
+    collection(db, 'macroLogs'),
+    where('userId', '==', userId)
+  );
+  const snap = await getDocs(q);
+  const all = snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      logId: d.id,
+      loggedAt: data.loggedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    } as MacroLog;
+  });
+  all.sort((a, b) => b.loggedAt.localeCompare(a.loggedAt));
+  const seen = new Set<string>();
+  const unique: MacroLog[] = [];
+  for (const log of all) {
+    const key = log.mealDescription.toLowerCase().trim();
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(log);
+      if (unique.length >= limit) break;
+    }
+  }
+  return unique;
+}

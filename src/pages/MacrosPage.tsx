@@ -11,9 +11,25 @@ import { MacroCalendar } from '@/components/macros/MacroCalendar';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useMacros } from '@/hooks/useMacros';
-import { analyzeMealPhoto, addMacroLog, uploadMealPhoto, deleteMacroLog, getMacroDatesWithEntries } from '@/services/macroService';
-import type { MealAnalysisResult, MacroSource } from '@/types/macro';
+import {
+  analyzeMealPhoto,
+  addMacroLog,
+  uploadMealPhoto,
+  deleteMacroLog,
+  getMacroDatesWithEntries,
+  getRecentUniqueMeals,
+} from '@/services/macroService';
+import type { MealAnalysisResult, MacroLog, MacroSource } from '@/types/macro';
 import { todayISO } from '@/utils/formatters';
+
+type ActiveTab = 'camera' | 'search' | 'manual' | 'recent';
+
+const TAB_LABELS: Record<ActiveTab, string> = {
+  camera: 'AI Photo',
+  search: 'Search',
+  manual: 'Manual',
+  recent: 'Recent',
+};
 
 export function MacrosPage() {
   const { user, userProfile } = useAuth();
@@ -29,9 +45,14 @@ export function MacrosPage() {
   const [pendingMime, setPendingMime] = useState<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'camera' | 'search' | 'manual'>('camera');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('camera');
   const [pendingSource, setPendingSource] = useState<MacroSource>('ai_photo');
   const [showTextFallback, setShowTextFallback] = useState(false);
+
+  const [recentMeals, setRecentMeals] = useState<MacroLog[]>([]);
+  const [recentLoading, setRecentLoading] = useState(false);
+  const [recentLoaded, setRecentLoaded] = useState(false);
+  const [addingRecentId, setAddingRecentId] = useState<string | null>(null);
 
   const refreshEntryDates = useCallback(async () => {
     if (!user) return;
@@ -43,7 +64,27 @@ export function MacrosPage() {
     refreshEntryDates();
   }, [refreshEntryDates]);
 
-  const handleUploadReady = async (base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => {
+  const loadRecentMeals = useCallback(async () => {
+    if (!user || recentLoaded) return;
+    setRecentLoading(true);
+    try {
+      const meals = await getRecentUniqueMeals(user.uid);
+      setRecentMeals(meals);
+      setRecentLoaded(true);
+    } finally {
+      setRecentLoading(false);
+    }
+  }, [user, recentLoaded]);
+
+  const handleTabChange = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    if (tab === 'recent') loadRecentMeals();
+  };
+
+  const handleUploadReady = async (
+    base64: string,
+    mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
+  ) => {
     setPendingBase64(base64);
     setPendingMime(mimeType);
     setPendingSource('ai_photo');
@@ -105,7 +146,13 @@ export function MacrosPage() {
     }
   };
 
-  const handleSaveManual = async (data: { mealDescription: string; calories: number; proteinG: number; carbsG: number; fatG: number }) => {
+  const handleSaveManual = async (data: {
+    mealDescription: string;
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+  }) => {
     if (!user) return;
     await addMacroLog(user.uid, {
       date: selectedDate,
@@ -122,30 +169,54 @@ export function MacrosPage() {
     refreshEntryDates();
   };
 
+  const handleAddRecent = async (meal: MacroLog) => {
+    if (!user) return;
+    setAddingRecentId(meal.logId);
+    try {
+      await addMacroLog(user.uid, {
+        date: selectedDate,
+        source: 'manual',
+        imageUrl: null,
+        mealDescription: meal.mealDescription,
+        calories: meal.calories,
+        proteinG: meal.proteinG,
+        carbsG: meal.carbsG,
+        fatG: meal.fatG,
+        aiRawResponse: null,
+      });
+      refetch();
+      refreshEntryDates();
+    } finally {
+      setAddingRecentId(null);
+    }
+  };
+
   const isToday = selectedDate === todayISO();
   const mealsHeading = isToday
     ? "Today's Meals"
-    : `Meals on ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    : `Meals on ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      })}`;
 
   return (
     <AppShell title="Macros">
-      {/* Calendar */}
       <MacroCalendar
         selectedDate={selectedDate}
         datesWithEntries={datesWithEntries}
         onSelectDate={setSelectedDate}
       />
 
-      {/* Summary */}
       {userProfile && (
         <section className="mb-6">
-          {loading ? <div className="flex justify-center py-4"><Spinner /></div> : (
+          {loading ? (
+            <div className="flex justify-center py-4"><Spinner /></div>
+          ) : (
             <DailyMacroSummary totals={totals} targets={userProfile} />
           )}
         </section>
       )}
 
-      {/* Meals list */}
       {logs.length > 0 && (
         <section className="mb-6">
           <h2 className="text-base font-semibold text-textPrimary mb-3">{mealsHeading}</h2>
@@ -153,9 +224,17 @@ export function MacrosPage() {
             {logs.map((log) => (
               <div key={log.logId} className="bg-surface rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-textPrimary flex-1 mr-2">{log.mealDescription}</p>
+                  <p className="text-sm font-medium text-textPrimary flex-1 mr-2">
+                    {log.mealDescription}
+                  </p>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${log.source === 'ai_photo' ? 'bg-accent/20 text-accent' : 'bg-surfaceHigh text-textMuted'}`}>
+                    <span
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        log.source === 'ai_photo'
+                          ? 'bg-accent/20 text-accent'
+                          : 'bg-surfaceHigh text-textMuted'
+                      }`}
+                    >
                       {log.source === 'ai_photo' ? 'AI' : 'Manual'}
                     </span>
                     <button
@@ -186,7 +265,10 @@ export function MacrosPage() {
                   </div>
                 </div>
                 <p className="text-xs text-textMuted mt-2">
-                  {new Date(log.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(log.loggedAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </p>
               </div>
             ))}
@@ -194,20 +276,19 @@ export function MacrosPage() {
         </section>
       )}
 
-      {/* Add meal — only shown for today */}
       {isToday && (
         <>
           <div className="flex bg-surface rounded-xl p-1 mb-4">
-            {(['camera', 'search', 'manual'] as const).map((tab) => (
+            {(['camera', 'search', 'manual', 'recent'] as const).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => handleTabChange(tab)}
                 className={[
-                  'flex-1 py-2 text-sm font-medium rounded-lg transition-colors',
+                  'flex-1 py-2 text-xs font-medium rounded-lg transition-colors',
                   activeTab === tab ? 'bg-accent text-white' : 'text-textMuted',
                 ].join(' ')}
               >
-                {tab === 'camera' ? 'AI Photo' : tab === 'search' ? 'Search Food' : 'Manual Entry'}
+                {TAB_LABELS[tab]}
               </button>
             ))}
           </div>
@@ -226,14 +307,17 @@ export function MacrosPage() {
                   <MacroCameraUpload onUploadReady={handleUploadReady} />
                   {analyzing && (
                     <div className="flex items-center justify-center gap-2 mt-4 text-textMuted">
-                      <Spinner size="sm" /> <span className="text-sm">Analyzing meal…</span>
+                      <Spinner size="sm" />
+                      <span className="text-sm">Analyzing meal…</span>
                     </div>
                   )}
                   {analyzeError && (
                     <>
                       <p className="text-xs text-danger mt-2">{analyzeError}</p>
                       <div className="mt-3">
-                        <p className="text-xs text-textMuted mb-2">Try describing your meal instead:</p>
+                        <p className="text-xs text-textMuted mb-2">
+                          Try describing your meal instead:
+                        </p>
                         {showTextFallback ? (
                           <MacroTextForm
                             onResult={(result) => {
@@ -277,8 +361,43 @@ export function MacrosPage() {
                 />
               )}
             </section>
-          ) : (
+          ) : activeTab === 'manual' ? (
             <MacroManualForm onSubmit={handleSaveManual} />
+          ) : (
+            <section>
+              {recentLoading ? (
+                <div className="flex justify-center py-8"><Spinner /></div>
+              ) : recentMeals.length === 0 ? (
+                <p className="text-sm text-textMuted text-center py-8">
+                  No meals logged yet.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {recentMeals.map((meal) => (
+                    <div
+                      key={meal.logId}
+                      className="bg-surface rounded-xl p-4 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-textPrimary truncate">
+                          {meal.mealDescription}
+                        </p>
+                        <p className="text-xs text-textMuted mt-1">
+                          {meal.calories} kcal · {meal.proteinG}g protein · {meal.carbsG}g carbs · {meal.fatG}g fat
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleAddRecent(meal)}
+                        disabled={addingRecentId === meal.logId}
+                        className="bg-accentGreen text-background rounded-lg px-3 py-2 text-xs font-bold flex-shrink-0 disabled:opacity-50"
+                      >
+                        {addingRecentId === meal.logId ? <Spinner size="sm" /> : '+ Add'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
         </>
       )}

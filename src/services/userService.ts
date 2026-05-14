@@ -65,7 +65,13 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 export async function updateUserProfile(
   uid: string,
   updates: Partial<
-    Pick<UserProfile, 'gender' | 'goal' | 'fitnessLevel' | 'equipment' | 'displayName' | 'onboardingComplete' | 'currentStreak' | 'longestStreak' | 'lastWorkoutDate' | 'dailyWaterGoal' | 'dailyCalorieTarget' | 'dailyProteinTarget' | 'dailyCarbsTarget' | 'dailyFatTarget' | 'weeklyWorkoutGoal'>
+    Pick<UserProfile,
+      | 'gender' | 'goal' | 'fitnessLevel' | 'equipment' | 'displayName'
+      | 'onboardingComplete' | 'currentStreak' | 'longestStreak' | 'lastWorkoutDate'
+      | 'dailyWaterGoal' | 'dailyCalorieTarget' | 'dailyProteinTarget' | 'dailyCarbsTarget'
+      | 'dailyFatTarget' | 'weeklyWorkoutGoal'
+      | 'age' | 'heightCm' | 'weightKg' | 'activityLevel'
+    >
   >
 ): Promise<void> {
   await updateDoc(doc(db, 'users', uid), {

@@ -41,6 +41,10 @@ export async function createUserProfile(
     dailyCarbsTarget: DEFAULT_CARBS_TARGET,
     dailyFatTarget: DEFAULT_FAT_TARGET,
     weeklyWorkoutGoal: 3,
+    age: null,
+    heightCm: null,
+    weightKg: null,
+    activityLevel: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
